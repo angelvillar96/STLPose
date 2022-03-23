@@ -2,8 +2,8 @@
 Training (fine-tuning) and Validation a Faster-RCNN.
 The Faster-RCNN model provided by PyTorch has been trained on the COCO dataset, but
 it does not generalize well to our styled data. We use this file for fine-tuning.
-EnhancePoseEstimation/src
-@author: 
+
+@author: Angel Villar-Corrales
 """
 
 import os, pdb

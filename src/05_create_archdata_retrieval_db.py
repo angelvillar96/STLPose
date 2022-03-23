@@ -2,7 +2,7 @@
 Extracting the pose skeletons from the arch data using a pretrained model
 to create our estimated version of the ArchData dataset
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

@@ -1,7 +1,7 @@
 """
 Fitting a k-nearest neighbor tree for pose similarity and retrieval purposes
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

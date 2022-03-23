@@ -2,7 +2,7 @@
 Transforms used during the preprocessing steps: normalizing to zero-mean and unit variance,
 flipping image and keypoints, affine transforms for crops and bounding boxes, ...
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import numpy as np

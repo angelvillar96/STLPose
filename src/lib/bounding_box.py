@@ -1,7 +1,7 @@
 """
 Methods for handling and processing bounding boxes from the FasterRCNN model
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import numpy as np

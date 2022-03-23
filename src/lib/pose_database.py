@@ -2,7 +2,7 @@
 Methods for processing the retrieval dabase fit with pose skeletons from all person
 instanes in certain dataset, i.e., MS-COCO, Styled-COCO or Vases
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

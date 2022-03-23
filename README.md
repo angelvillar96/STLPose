@@ -14,15 +14,9 @@ Perceptually-grounded Style Transfer Learning* with Paper ID: 8558.
 
 ## Getting Started
 
-To download the code, fork the repository or clone it using the following command:
-
-```
-  git clone https://github.com/angelvillar96/EnhancePoseEstimation.git
-```
-
 ### Prerequisites
 
-To get the repository running, you will need several python packages, e.g., numpy, OpenCV, torch or matplotlib.
+To get the repository running, you will need several python packages, e.g., PyTorch, OpenCV, or matplotlib.
 
 You can install them all easily and avoiding dependency issues by installing the conda environment file included in the repository. To do so, run the following command from the Conda Command Window:
 
@@ -187,8 +181,21 @@ Then, each of the checkpoints will be evaluated on the test set. These evaluatio
 
 
 
-<!-- ## Reproduce Results
+## Citing
 
-In this section, we describe how to reproduce the results from our paper.
+Please consider citing if you find our findings or our repository helpful.
+```
+@article{madhu2020enhancing,
+  title={Enhancing human pose estimation in ancient vase paintings via perceptually-grounded style transfer learning},
+  author={Madhu, Prathmesh and Villar-Corrales, Angel and Kosti, Ronak and Bendschus, Torsten and Reinhardt, Corinna and Bell, Peter and Maier, Andreas and Christlein, Vincent},
+  journal={arXiv preprint arXiv:2012.05616},
+  year={2020}
+}
+```
 
-![Evaluation for Pose Estimation](imgs_readme/tables_comparison.png "Evaluation Pose Estimation") -->
+## Contact
+
+This work has been developed by [Angel Villar-Corrales](http://angelvillarcorrales.com/templates/home.php) and  supervised by
+ [Prathmesh Madhu](https://lme.tf.fau.de/person/madhu/).
+
+In case of any questions or problems regarding the project or repository, do not hesitate to contact me at villar@ais.uni-bonn.de.

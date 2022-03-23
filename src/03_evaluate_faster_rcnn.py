@@ -2,7 +2,7 @@
 Evaluating the faster rcnn (or other model) for the task of person detection
 
 EnhancePoseEstimation/src
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os, pdb

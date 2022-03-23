@@ -3,7 +3,7 @@ Script for testing the functionality of dataloaders. Checking that pairs
 of (image, *target) are created correctly
 
 EnhancePoseEstimation/src
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

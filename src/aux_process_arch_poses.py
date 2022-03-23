@@ -2,7 +2,7 @@
 Code for processing the ArchData dataset pose annotations from the original CSV
 file into a JSON file matching the MS-COCO format
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os, json

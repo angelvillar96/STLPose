@@ -2,7 +2,7 @@
 Training (fine-tuning) and Validation of an HRNet Pose Estimation model
 
 EnhancePoseEstimation/src
-@author:
+@author: Angel Villar-Corrales
 """
 
 import os

@@ -3,7 +3,7 @@ Auxiliary methods to handle logs, argument files and other
 functions that do not belong to any particular class
 
 EnhancePoseEstimation/src/lib
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

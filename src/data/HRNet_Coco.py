@@ -1,19 +1,15 @@
 """
 (Styled-) COCO dataset for training the HRNet model
 
-EnhancePoseEstimation/src/data
 Adapted from: https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
 """
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
 from collections import defaultdict
 from collections import OrderedDict
 import os
-import json
-import sys
 
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -23,6 +19,7 @@ import torch
 
 from data.JointsDataset import JointsDataset
 from lib.nms import oks_nms
+import CONSTANTS
 
 
 class HRNetCoco(JointsDataset):
@@ -50,16 +47,20 @@ class HRNetCoco(JointsDataset):
 
     def __init__(self, exp_data, root, img_path, labels_path, is_train, is_styled=False,
                  alpha=None, styles=None, perceptual_loss_dict=None, transform=None):
-
+        """ Module initializer """
         super().__init__(exp_data=exp_data, root=root, img_path=img_path,
                          labels_path=labels_path, is_train=is_train,
                          perceptual_loss_dict=perceptual_loss_dict, transform=transform)
 
         self.nms_thre = exp_data["evaluation"]["nms_thr"]
-        self.image_thre =exp_data["evaluation"]["img_thr"]
+        self.image_thre = exp_data["evaluation"]["img_thr"]
         self.oks_thre = exp_data["evaluation"]["oks_thr"]
-        self.in_vis_thre = exp_data["evaluation"]["in_vis_thr"]
-        self.bbox_file = os.path.join(self.root, "person_detection_results", "COCO_val2017_detections_AP_H_56_person.json")
+        self.in_vis_thr = exp_data["evaluation"]["in_vis_thr"]
+        self.bbox_file = os.path.join(
+                self.root,
+                "person_detection_results",
+                "COCO_val2017_detections_AP_H_56_person.json"
+            )
         self.use_gt_bbox = exp_data["evaluation"]["use_gt_bbox"]
         self.image_width = 192
         self.image_height = 256
@@ -78,45 +79,32 @@ class HRNetCoco(JointsDataset):
         self.coco = COCO(self.labels_path)
 
         # deal with class names
-        cats = [cat['name']
-                for cat in self.coco.loadCats(self.coco.getCatIds())]
+        cats = [cat['name'] for cat in self.coco.loadCats(self.coco.getCatIds())]
         self.classes = ['__background__'] + cats
         self.num_classes = len(self.classes)
         self._class_to_ind = dict(zip(self.classes, range(self.num_classes)))
         self._class_to_coco_ind = dict(zip(cats, self.coco.getCatIds()))
         self._coco_ind_to_class_ind = dict(
-            [
-                (self._class_to_coco_ind[cls], self._class_to_ind[cls])
-                for cls in self.classes[1:]
-            ]
-        )
+                [(self._class_to_coco_ind[cls], self._class_to_ind[cls])for cls in self.classes[1:]]
+            )
 
         # load image file names
         self.image_set_index = self._load_image_set_index()
         self.num_images = len(self.image_set_index)
 
-        self.num_joints = 17
-        self.flip_pairs = [[1, 2], [3, 4], [5, 6], [7, 8],
-                           [9, 10], [11, 12], [13, 14], [15, 16]]
+        self.num_joints = len(CONSTANTS.COCO_MAP_HRNET)
+        self.flip_pairs = CONSTANTS.FLIP_PAIRS
         self.parent_ids = None
-        self.upper_body_ids = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-        self.lower_body_ids = (11, 12, 13, 14, 15, 16)
+        self.upper_body_ids = CONSTANTS.UPPER_BODY_IDS
+        self.lower_body_ids = CONSTANTS.LOWER_BODY_IDS
 
-        self.joints_weight = np.array(
-            [
+        self.joints_weight = np.array([
                 1., 1., 1., 1., 1., 1., 1., 1.2, 1.2,
                 1.5, 1.5, 1., 1., 1.2, 1.2, 1.5, 1.5
-            ],
-            dtype=np.float32
-        ).reshape((self.num_joints, 1))
+            ], dtype=np.float32).reshape((self.num_joints, 1))
 
         self.db = self._get_db()
-
-        # if is_train and cfg.DATASET.SELECT_DATA:
-            # self.db = self.select_data(self.db)
-
         return
-
 
     def _load_image_set_index(self):
         """
@@ -124,7 +112,6 @@ class HRNetCoco(JointsDataset):
         """
         image_ids = self.coco.getImgIds()
         return image_ids
-
 
     def _get_db(self):
         """
@@ -139,7 +126,6 @@ class HRNetCoco(JointsDataset):
             gt_db = self._load_coco_person_detection_results()
         return gt_db
 
-
     def _load_coco_keypoint_annotations(self):
         """
         ground truth bbox and keypoints
@@ -148,7 +134,6 @@ class HRNetCoco(JointsDataset):
         for index in self.image_set_index:
             gt_db.extend(self._load_coco_keypoint_annotation_kernal(index))
         return gt_db
-
 
     def _load_coco_keypoint_annotation_kernal(self, index):
         """
@@ -222,7 +207,7 @@ class HRNetCoco(JointsDataset):
             else:
                 alpha = self.alpha if self.alpha is not None else 0
             # getting path of original image if in styled model
-            if(self.is_styled == True):
+            if(self.is_styled):
                 original_image_path = self.original_image_path_from_index(index)
             else:
                 original_image_path = image_path
@@ -238,20 +223,15 @@ class HRNetCoco(JointsDataset):
                 'imgnum': 0,
                 'alpha': alpha
             })
-
         return rec
 
-
     def _box2cs(self, box):
-        """"""
+        """ Reparameterizing BBOX from (top, left, width, height) to (center, scale)"""
         x, y, w, h = box[:4]
         return self._xywh2cs(x, y, w, h)
 
-
     def _xywh2cs(self, x, y, w, h):
-        """
-        Converting a bounding box (top, left, width, height) to (center, scale)
-        """
+        """ Converting a bounding box (top, left, width, height) to (center, scale) """
         center = np.zeros((2), dtype=np.float32)
         center[0] = x + w * 0.5
         center[1] = y + h * 0.5
@@ -260,20 +240,16 @@ class HRNetCoco(JointsDataset):
             h = w * 1.0 / self.aspect_ratio
         elif w < self.aspect_ratio * h:
             w = h * self.aspect_ratio
-        # scale = np.array([w * 1.0 / self.image_size[0], h * 1.0 / self.image_size[1]])
 
-        scale = np.array(
-            [w * 1.0 / self.pixel_std, h * 1.0 / self.pixel_std],
-            dtype=np.float32)
+            # scale = np.array([w * 1.0 / self.image_size[0], h * 1.0 / self.image_size[1]])
+        scale = np.array([w * 1.0 / self.pixel_std, h * 1.0 / self.pixel_std], dtype=np.float32)
         if center[0] != -1:
             scale = scale * 1.25
-
         return center, scale
-
 
     def _load_mapping_dict(self):
         """
-        Loading the mapping dictionary that assignas COCO image names to the
+        Loading the mapping dictionary that assignas COCO image names to their
         corresponding styled counterpart
         """
 
@@ -286,33 +262,26 @@ class HRNetCoco(JointsDataset):
         mapping_dict_path = os.path.join(self.root, "mapping_dicts", cur_dict)
         print(f"Loading {mapping_dict_path}...")
 
-        if( not os.path.exists(mapping_dict_path) ):
-            assert False, f"Dictionary mapping COCO to Styled_COCO-{alpha}-{style} does " +\
-                "not exists.\n Run 'aux_styled_coco_preload' to generate the dictionaries."
+        if(not os.path.exists(mapping_dict_path)):
+            raise FileNotFoundError(
+                f"Dictionary mapping COCO to Styled_COCO-{alpha}-{style} does not exists."
+                "Run 'aux_styled_coco_preload' to generate the dictionaries."
+            )
 
         with open(mapping_dict_path) as f:
             mapping_dict = json.load(f)
-
         return mapping_dict
 
-
     def _get_styled_image_given_original(self, original_name):
-        """
-        Fetching the name of the styled image given the name of the original one
-        """
-
+        """ Fetching the name of the styled image given the name of the original one """
         original_name = '%012d' % float(original_name)
         # if(original_name not in self.mapping_dict.keys()):
-            # return None
+        #     return None
         cur_styled_img_name = self.mapping_dict[original_name]
-
         return cur_styled_img_name
 
-
     def image_path_from_index(self, index):
-        """
-        Obtaining an image path given the image ID
-        """
+        """ Obtaining an image path given the image ID """
         if(self.is_styled):
             file_name = self._get_styled_image_given_original(str(index))
             if(file_name is None):
@@ -321,38 +290,23 @@ class HRNetCoco(JointsDataset):
         else:
             file_name = '%012d.jpg' % index
             image_path = os.path.join(self.original_image_path, file_name)
-
         return image_path
-
 
     def original_image_path_from_index(self, index):
-        """
-        Obtaining the original COCO image path given the ID
-        """
-
+        """ Obtaining the original COCO image path given the ID """
         file_name = '%012d.jpg' % index
         image_path = os.path.join(self.original_image_path, file_name)
-
         return image_path
 
-
     def get_name_given_id(self, index):
-        """
-        Obtaining an image name given the image ID
-        """
-
+        """ Obtaining an image name given the image ID """
         file_name = self.db[index]['original_image'].split("/")[-1]
-
         if(self.is_styled):
             file_name = self._get_styled_image_given_original(file_name[:-4])
-
         return file_name
 
-
     def _load_coco_person_detection_results(self):
-        """
-        Loading bounding box annotations extracted and exported by a human detector
-        """
+        """ Loading bounding box annotations extracted and exported by a human detector """
         if(not os.path.exists(self.bbox_file)):
             raise NameError(f"ERROR: Bounding Box annotation file: {self.bbox_file} does not exist...")
 
@@ -378,7 +332,6 @@ class HRNetCoco(JointsDataset):
                 continue
 
             num_boxes = num_boxes + 1
-
             center, scale = self._box2cs(box)
 
             # TODO: missing loading annotations
@@ -397,12 +350,8 @@ class HRNetCoco(JointsDataset):
 
         return kpt_db
 
-
     def get_all_samples_given_name(self, name):
-        """
-        Obtaining all persons, bboxes and annotations given an image name
-        """
-
+        """ Obtaining all persons, bboxes and annotations given an image name """
         inputs, targets, weights, metas = [], [], [], []
         for idx, db_rec in enumerate(self.db):
             image_file = db_rec['image'].split("/")[-1]
@@ -431,10 +380,10 @@ class HRNetCoco(JointsDataset):
 
         return inputs, targets, weights, metadata
 
-
-    """
-    MIGRATE THE METHODS BELOW THIS LINE TO LIBRARIES
-    """
+    #############################
+    # TODO
+    # MIGRATE THE METHODS BELOW THIS LINE TO LIBRARIES
+    #############################
 
     def evaluate(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
         rank = cfg.RANK
@@ -469,7 +418,7 @@ class HRNetCoco(JointsDataset):
 
         # rescoring and oks nms
         num_joints = self.num_joints
-        in_vis_thre = self.in_vis_thre
+        in_vis_thr = self.in_vis_thr
         oks_thre = self.oks_thre
         oks_nmsed_kpts = []
         for img in kpts.keys():
@@ -480,7 +429,7 @@ class HRNetCoco(JointsDataset):
                 valid_num = 0
                 for n_jt in range(0, num_joints):
                     t_s = n_p['keypoints'][n_jt][2]
-                    if t_s > in_vis_thre:
+                    if t_s > in_vis_thr:
                         kpt_score = kpt_score + t_s
                         valid_num = valid_num + 1
                 if valid_num != 0:

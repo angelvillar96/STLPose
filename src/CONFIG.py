@@ -2,7 +2,7 @@
 Configuration macros and default argument values
 
 EnhancePseEstimation/src
-@author: 
+@author: Angel Villar-Corrales
 """
 
 import numpy as np

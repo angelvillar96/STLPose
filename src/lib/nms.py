@@ -1,7 +1,7 @@
 """
 Non-maximum suppresiong methods for keypoint and bounding box detections
 
-@author:
+@author: Angel Villar-Corrales
 """
 
 import numpy as np

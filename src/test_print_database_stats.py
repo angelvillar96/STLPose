@@ -1,7 +1,9 @@
 """
 Loading the dataset and displaying the stats to then include in the report
 
-@author: 
+@author: Angel Villar-Corrales
+
+TODO: Rework this file. e.g. dataset is hardwired
 """
 
 import os, pdb

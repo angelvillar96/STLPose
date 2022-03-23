@@ -1,7 +1,7 @@
 """
 Utils for creating a Logger that writes info, warnings and so on into a logs file
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

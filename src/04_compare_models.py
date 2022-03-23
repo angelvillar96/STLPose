@@ -2,7 +2,7 @@
 Loading one or two models and qualititatively observing where they perform better
 or worse, and where their performance differes the most.
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os, json

@@ -1,7 +1,7 @@
 """
 Displaying some of the skeleton instances saved in the retrieval database
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

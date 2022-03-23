@@ -3,7 +3,7 @@ Methods for computing predictions and evaluation metrics, incuding OKS Precision
 from the COCO api and accuracy based on distance
 
 EnhancePoseEstimation/src/lib
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

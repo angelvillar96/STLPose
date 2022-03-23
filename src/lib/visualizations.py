@@ -2,7 +2,7 @@
 Methods for visualization of images, targets and overlays
 
 EnhancePoseEstimation/src/lib
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

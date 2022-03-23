@@ -3,7 +3,7 @@ Preprocessing a certain dataset (e.g. Styled COCO) to set as database in the
 pose-based retrieval demonstrator. The preprocessing steps include saving bounding
 box and keypoint annotations
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

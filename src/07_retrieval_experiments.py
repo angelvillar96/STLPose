@@ -3,7 +3,7 @@ Performing a retrieval experiment for the arch_data dataset. It works as follows
     - For each query, we obtaine the top-N retrievals for a certain metric
     - We measure retrieval performance using several approaches
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

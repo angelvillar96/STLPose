@@ -2,7 +2,7 @@
 Spliting the ArchDataset into a train and validation set. Saving all images and
 annotations into the /data directory to load when training the EfficientDet.
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os, shutil

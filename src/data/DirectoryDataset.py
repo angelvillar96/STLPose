@@ -1,20 +1,19 @@
 """
 Creating a (not-annotated) Dataset by fitting images from a directory
 
-@author: 
+@author: Angel Villar-Corrales
+
 """
 
 import os
-
 import numpy as np
 import cv2
-import torch
 from torch.utils.data import Dataset
 
 from CONFIG import CONFIG
 
 
-class DirectoryDataset:
+class DirectoryDataset(Dataset):
     """
     Creating a dataset object from images located under the same directory
 
@@ -27,11 +26,8 @@ class DirectoryDataset:
     """
 
     def __init__(self, datapath, split=None, valid_size=0, random_seed=None, shuffle=False):
-        """
-        Initializer of the dataset object
-        """
-
-        assert os.path.exists(datapath)
+        """ Initializer of the dataset object """
+        assert os.path.exists(datapath), f"Non-existing path {datapath}..."
         assert split in ["train", "validation", None]
 
         self.datapath = datapath
@@ -44,25 +40,18 @@ class DirectoryDataset:
             np.random.shuffle(self.data)
         self.num_imgs = len(self.data)
 
-        return
-
-
     def __len__(self):
-        """Obtaining the number of images in the dataset"""
+        """ Obtaining the number of images in the dataset """
         return self.num_imgs
 
-
     def __getitem__(self, idx):
-        """
-        Sampling an image from the database
-        """
-
+        """ Sampling an image from the database"""
         image_path = os.path.join(self.datapath, self.data[idx])
         data_numpy = cv2.imread(
             image_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
         )
         data_numpy = cv2.cvtColor(data_numpy.astype(np.uint8), cv2.COLOR_BGR2RGB)
-        data_numpy = data_numpy.transpose(2,0,1)
+        data_numpy = data_numpy.transpose(2, 0, 1)
 
         metadata = {
             "image_name": image_path.split("/")[-1],

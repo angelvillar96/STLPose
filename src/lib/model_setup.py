@@ -3,7 +3,7 @@ Methods for initializing the model, loading checkpoints, setting up optimizers a
 functions, and other model-related methods
 
 EnhancePoseEstimation/src/lib
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

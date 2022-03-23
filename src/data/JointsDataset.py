@@ -8,7 +8,6 @@ Adapted from: https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
 import copy
 import os
 import sys
@@ -18,7 +17,6 @@ import cv2
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
 sys.path.append("..")
 
 from lib.transforms import get_affine_transform
@@ -27,13 +25,13 @@ from lib.transforms import fliplr_joints
 import CONSTANTS
 from CONFIG import CONFIG
 
+
 class JointsDataset(Dataset):
-    """
-    """
+    """ Base class for human pose estimation datase """
 
     def __init__(self, exp_data, root, img_path, labels_path, is_train,
                  perceptual_loss_dict=None, transform=None):
-
+        """ Module initializer """
         self.num_joints = 17
         self.pixel_std = 200
         self.flip_pairs = CONSTANTS.FLIP_PAIRS
@@ -50,10 +48,6 @@ class JointsDataset(Dataset):
             test_dir = "val2017"
         self.original_image_path = os.path.join(root, "original_images", test_dir)
 
-        # self.output_path = cfg.OUTPUT_DIR
-        # self.data_format = cfg.DATASET.DATA_FORMAT
-        # self.color_rgb = cfg.DATASET.COLOR_RGB
-
         self.scale_factor = exp_data["dataset"]["scale_factor"]
         self.rotation_factor = exp_data["dataset"]["rot_factor"]
         self.flip = exp_data["dataset"]["flip"]
@@ -64,21 +58,38 @@ class JointsDataset(Dataset):
         self.image_size = np.array([192, 256])
         self.heatmap_size = np.array([48, 64])
         self.sigma = 2
-        self.use_different_joints_weight =True
+        self.use_different_joints_weight = True
         self.joints_weight = 1
 
         self.transform = transform
         self.db = []
 
     def _get_db(self):
+        """ """
         raise NotImplementedError
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
+        """ """
         raise NotImplementedError
 
     def half_body_transform(self, joints, joints_vis):
-        upper_joints = []
-        lower_joints = []
+        """
+        Half-body augmentation. If there are enought keypoints present,
+        we choose either the lower or the upper body only
+
+        Args:
+        -----
+        joints: list/np.array
+            Human keypoints annotations
+        joints_vis: list/np.array
+            Visibility of each of the joints
+
+        Returns:
+        --------
+        center, scale: numpy arrays
+            Center coordinate and relative scale of the upper/lower body wrt original crop
+        """
+        upper_joints, lower_joints = [], []
         for joint_id in range(self.num_joints):
             if joints_vis[joint_id][0] > 0:
                 if joint_id in self.upper_body_ids:
@@ -86,15 +97,15 @@ class JointsDataset(Dataset):
                 else:
                     lower_joints.append(joints[joint_id])
 
+        # making sure there are enough keypoints
         if np.random.randn() < 0.5 and len(upper_joints) > 2:
             selected_joints = upper_joints
         else:
-            selected_joints = lower_joints \
-                if len(lower_joints) > 2 else upper_joints
-
+            selected_joints = lower_joints
         if len(selected_joints) < 2:
             return None, None
 
+        # zooming into the selected joints area
         selected_joints = np.array(selected_joints, dtype=np.float32)
         center = selected_joints.mean(axis=0)[:2]
 
@@ -109,27 +120,20 @@ class JointsDataset(Dataset):
         elif w < self.aspect_ratio * h:
             w = h * self.aspect_ratio
 
-        scale = np.array(
-            [
+        scale = np.array([
                 w * 1.0 / self.pixel_std,
                 h * 1.0 / self.pixel_std
-            ],
-            dtype=np.float32
-        )
-
+            ], dtype=np.float32)
         scale = scale * 1.5
-
         return center, scale
 
-
-    def __len__(self,):
+    def __len__(self):
+        """ """
         return len(self.db)
 
-
     def __getitem__(self, idx):
-
-        # processing precomputed metadata
-        db_rec = copy.deepcopy(self.db[idx])
+        """ Sampling image from the dataset, keypoint annotations, and metadata """
+        db_rec = copy.deepcopy(self.db[idx])  # TODO
         image_file = db_rec['image']
         image_name = os.path.basename(image_file)
         alpha = float(db_rec['alpha']) if 'alpha' in db_rec.keys() else 0.
@@ -144,9 +148,7 @@ class JointsDataset(Dataset):
             perceptual_loss = self.perceptual_loss_dict[image_name]
 
         # loading image
-        data_numpy = cv2.imread(
-            image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
-        )
+        data_numpy = cv2.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         data_numpy = cv2.cvtColor(data_numpy.astype(np.uint8), cv2.COLOR_BGR2RGB)
         if data_numpy is None:
             raise ValueError('Fail to read {}'.format(image_file))
@@ -161,37 +163,38 @@ class JointsDataset(Dataset):
 
         # applying transformations and augmentations to image and annotations
         if self.is_train:
-            if (np.sum(joints_vis[:, 0]) > self.num_joints_half_body
-                and np.random.rand() < self.prob_half_body):
-                c_half_body, s_half_body = self.half_body_transform(
-                    joints, joints_vis
-                )
-
+            # applying half-body transform
+            vis_joints = np.sum(joints_vis[:, 0])
+            if(vis_joints > self.num_joints_half_body and np.random.rand() < self.prob_half_body):
+                c_half_body, s_half_body = self.half_body_transform(joints, joints_vis)
                 if c_half_body is not None and s_half_body is not None:
                     c, s = c_half_body, s_half_body
 
+            # scaling and rotation augmentations
             sf = self.scale_factor
             rf = self.rotation_factor
-            s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
-            r = np.clip(np.random.randn()*rf, -rf*2, rf*2) \
-                if random.random() <= 0.6 else 0
+            s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
+            if random.random() <= 0.6:
+                r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2)
+            else:
+                r = 0
 
+            # mirroring left-right the image, left-rigth annotation pairs, and center coord
             if self.flip and random.random() <= 0.5:
                 data_numpy = data_numpy[:, ::-1, :]
-                joints, joints_vis = fliplr_joints(
-                    joints, joints_vis, data_numpy.shape[1], self.flip_pairs)
+                joints, joints_vis = fliplr_joints(joints, joints_vis, data_numpy.shape[1], self.flip_pairs)
                 c[0] = data_numpy.shape[1] - c[0] - 1
 
+        # applying affine transformations to img/annotations as well as others (e.g. toTensor())
         trans = get_affine_transform(c, s, r, self.image_size)
         input = cv2.warpAffine(
-            data_numpy,
-            trans,
-            (int(self.image_size[0]), int(self.image_size[1])),
-            flags=cv2.INTER_LINEAR)
-
+                data_numpy,
+                trans,
+                (int(self.image_size[0]), int(self.image_size[1])),
+                flags=cv2.INTER_LINEAR
+            )
         if self.transform:
             input = self.transform(input)
-
         for i in range(self.num_joints):
             if joints_vis[i, 0] > 0.0:
                 joints[i, 0:2] = affine_transform(joints[i, 0:2], trans)
@@ -218,45 +221,11 @@ class JointsDataset(Dataset):
             "perceptual_loss": perceptual_loss,
             'full_image': '',       # for compatibility in 'Combined-db'
             'image_path': '',       # for compatibility in 'Combined-db'
-            'original_joints': np.zeros((17,3)).astype(np.double),  # for compatibility
-            'archdata_joints': np.zeros((18,3)).astype(np.double),  # for compatibility
+            'original_joints': np.zeros((17, 3)).astype(np.double),  # for compatibility
+            'archdata_joints': np.zeros((18, 3)).astype(np.double),  # for compatibility
             'character_name': ''    # for compatibility in 'Combined-db'
         }
-
-
         return input, target, target_weight, meta
-
-
-    def select_data(self, db):
-        db_selected = []
-        for rec in db:
-            num_vis = 0
-            joints_x = 0.0
-            joints_y = 0.0
-            for joint, joint_vis in zip(
-                    rec['joints_3d'], rec['joints_3d_vis']):
-                if joint_vis[0] <= 0:
-                    continue
-                num_vis += 1
-
-                joints_x += joint[0]
-                joints_y += joint[1]
-            if num_vis == 0:
-                continue
-
-            joints_x, joints_y = joints_x / num_vis, joints_y / num_vis
-
-            area = rec['scale'][0] * rec['scale'][1] * (self.pixel_std**2)
-            joints_center = np.array([joints_x, joints_y])
-            bbox_center = np.array(rec['center'])
-            diff_norm2 = np.linalg.norm((joints_center-bbox_center), 2)
-            ks = np.exp(-1.0*(diff_norm2**2) / ((0.2)**2*2.0*area))
-
-            metric = (0.2 / 16) * num_vis + 0.45 - 0.2 / 16
-            if ks > metric:
-                db_selected.append(rec)
-
-        return db_selected
 
     def generate_target(self, joints, joints_vis):
         '''
@@ -315,3 +284,5 @@ class JointsDataset(Dataset):
             target_weight = np.multiply(target_weight, self.joints_weight)
 
         return target, target_weight
+
+#

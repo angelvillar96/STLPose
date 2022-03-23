@@ -2,7 +2,7 @@
 Methods for accessing a subset of the model parameters
 
 EnhancePoseEstimation/src/models
-@author: 
+@author: Angel Villar-Corrales 
     Adapted from Daniil Osokin:
         https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch
 """

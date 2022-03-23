@@ -2,7 +2,7 @@
 Creating a dictionary mapping the name of a character to the narrative its
 image belongs to
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

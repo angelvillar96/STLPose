@@ -2,7 +2,7 @@
 Evaluating a pretrained HRNet model on the complete validation set
 
 EnhancePoseEstimation/src
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

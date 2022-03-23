@@ -3,13 +3,13 @@ Methods for processing the annotations of the coco dataset. The methods in this 
 are used to generate keypoint-heatmaps and Part Affinity Fields (PAFs) from the
 original COCO annotation
 
-EnhancePoseEstimation/src/data
-@author: 
-    Adapted from Daniil Osokin:
-        https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch
-"""
+@author: Angel Villar-Corrales
+Adapted from Daniil Osokin:
+    https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch
 
-import time
+TODO: Check if functions in this file are actually used in the paper pipelines.
+Maybe they were only used for OpenPose investigations
+"""
 
 import numpy as np
 import torch.nn.functional as F
@@ -31,19 +31,6 @@ BODY_PARTS_KPT_IDS = None
 TO_COCO_MAP = None
 SKIP_NECK = False
 
-def timimg(method):
-    """
-    Decorator (@timing) for measuring the execution time of a method
-    """
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-        print('%r  %2.2f ms' % \
-         (method.__name__, (te - ts)*1000))
-        return result
-    return timed
-
 
 def reorder_keypoints_open_pose(target):
     """
@@ -63,8 +50,7 @@ def reorder_keypoints_open_pose(target):
 
 
 def convert_keypoints_to_coco_format(keypoints, res_file):
-    """
-    """
+    """ """
 
     results = []
     for img_kpts in keypoints:

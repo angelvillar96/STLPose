@@ -1,7 +1,7 @@
 """
 Displaying the statistics of a retrieval dataset
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os, shutil

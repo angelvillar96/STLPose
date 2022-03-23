@@ -3,7 +3,7 @@
 Methods for computing loss functions
 
 EnhancePoseEstimation/src/lib
-@author: 
+@author: Angel Villar-Corrales 
 """
 import os
 import sys

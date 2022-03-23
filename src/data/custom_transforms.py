@@ -1,18 +1,11 @@
 """
 Classes and methods for transforming and augmenting the data
 
-EnhancePseEstimation/src/data
-@author: 
+@author: Angel Villar-Corrales
 """
 
 import numpy as np
-import pdb
 import cv2
-import torch
-import torchvision
-import torchvision.transforms as transforms
-from PIL import Image
-from PIL import ImageOps
 from skimage import transform as sktsf
 
 
@@ -30,35 +23,29 @@ class Normalize():
     """
 
     def __init__(self, mean=(128, 128, 128), std=256):
-        """
-        Initializer of the Normalizer object
-        """
-
+        """ Initializer of the Normalizer object """
         self.mean = mean
         self.std = std
 
-        return
-
     def __call__(self, img):
-        """
-        Normalizing the image
-        """
-
-        img = np.array(img, dtype=np.float32)
+        """ Normalizing the image """
         norm_img = (img - self.mean) / self.std
-
         return norm_img
 
 
-class ResizeImageDetection(object):
+class ResizeImageDetection():
     """
-    Convertzing image and bbox coords to a fixed image size
+    Converting image and bbox coords to a fixed image size.
+    Image is downscaled so that largest side is converted to desired size,
+    smalles side is padded with zeros
     """
 
     def __init__(self, img_size=400):
+        """ Module initilizer """
         self.img_size = img_size
 
     def __call__(self, image, annots=None):
+        """ Resizing image to the desired size while keeping the desired ratio"""
         height, width, _ = image.shape
         if height > width:
             scale = self.img_size / height
@@ -69,44 +56,29 @@ class ResizeImageDetection(object):
             resized_height = int(height * scale)
             resized_width = self.img_size
 
+        # resizing and padding
         image = cv2.resize(image, (resized_width, resized_height), interpolation=cv2.INTER_LINEAR)
-
-        if(annots is None):
-            return image
-
         new_image = np.zeros((self.img_size, self.img_size, 3))
         new_image[0:resized_height, 0:resized_width] = image
         annots["boxes"][:, :4] *= scale
 
+        if(annots is None):
+            return image
         return new_image, annots, scale
-
-
-def invert_resize(preds, scale):
-    """
-    Converting bounding box coordinates from preprocessed image back to original size
-    """
-    preds = preds / scale
-    return preds
 
 
 class Resize():
     """
-    Class for Scaling the input images to a certain size
+    Class for Scaling the input images to a certain size while
+    keeping the original image aspect ratio
     """
 
     def __init__(self, size=400):
-        """
-        Intializer of the scaler
-        """
-
+        """ Intializer of the scaler """
         self.size = size
 
-        return
-
-
     def __call__(self, data):
-        """
-        Scaling the received image and target to the desired shape
+        """ Scaling the received image and target to the desired shape
 
         Args:
         -----
@@ -138,12 +110,12 @@ class Resize():
             pad_idx = (pad_val, pad_val+h, 0, w)
 
         resized_img = np.zeros((self.size, self.size, 3))
-        dim = (w,h)
+        dim = (w, h)
         resized_img[pad_idx[0]:pad_idx[1], pad_idx[2]:pad_idx[3]] = \
             cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
         if(mask is not None):
-            resized_mask = np.ones((1,self.size, self.size))
+            resized_mask = np.ones((1, self.size, self.size))
             resized_mask[:, pad_idx[0]:pad_idx[1], pad_idx[2]:pad_idx[3]] = \
                 cv2.resize(mask, dim, interpolation=cv2.INTER_AREA)
 
@@ -192,14 +164,13 @@ def preprocess_fast_rcnn(img, min_size=600, max_size=1000):
 
     Returns:
         ~numpy.ndarray: A preprocessed image.
-
     """
     C, H, W = img.shape
     scale1 = min_size / min(H, W)
     scale2 = max_size / max(H, W)
     scale = min(scale1, scale2)
     img = img / 255.
-    img = sktsf.resize(img, (C, H * scale, W * scale), mode='reflect',anti_aliasing=False)
+    img = sktsf.resize(img, (C, H * scale, W * scale), mode='reflect', anti_aliasing=False)
     # both the longer and shorter should be less than
     # max_size and min_size
     img = img[[2, 1, 0], :, :]  # RGB-BGR

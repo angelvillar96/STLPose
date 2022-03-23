@@ -132,7 +132,7 @@ def create_perceptual_loss_dict(images_path, original_images_path):
 
         vgg_loss_value = vgg_perceptual_loss.forward(o_tensor, s_tensor)
         perceptual_loss_dict[s_name] = vgg_loss_value.item()
-        
+
 #         if count >=5:
 #             break
 

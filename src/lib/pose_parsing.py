@@ -2,7 +2,7 @@
 Methods for parsing the huma pose given the Heatmaps and PAFs
 
 EnhancePoseEstimation/src/lib
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os

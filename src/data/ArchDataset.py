@@ -2,17 +2,14 @@
 Implementation of a dataset object to fit with the Archeological data
 This dataset can be used for both the tasks of person detection and pose estimation
 
-@author: 
+@author: Angel Villar-Corrales
 """
-
-import pdb
 
 import os
 import sys
 import json
 import copy
 import random
-
 import numpy as np
 import cv2
 import torch
@@ -20,7 +17,6 @@ from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 
 sys.path.append("..")
-
 from lib.logger import print_
 from lib.transforms import get_affine_transform
 from lib.transforms import affine_transform
@@ -37,23 +33,16 @@ class ArchDataset(Dataset):
     Args:
     -----
     task: string
-        Current task to solve with this dataset:
-            ['person_detection', 'pose_estimation']
+        Current task to solve with this dataset: ['person_detection', 'pose_estimation']
     """
 
     def __init__(self, split_set="train", task="person_detection", valid_size=0.2,
                  shuffle=True, exp_data=None, resizer=None, transform=None,
                  create_split=False, percentage=None):
-        """
-        Initializer of the ArchDataset dataset
-        """
-
-        # enforcing correct values for parameters
+        """ Initializer of the ArchDataset dataset """
         assert split_set in ["train", "validation", "test"]
-        assert task in ["person_detection", "pose_estimation"], \
-            f"An unexpected value was passed to the task argument: {task}."
+        assert task in ["person_detection", "pose_estimation"],  f"Unexpected task argument: {task}."
 
-        # parameters and relevant paths
         self.exp_data = exp_data
         self.transform = transform
         self.resizer = resizer
@@ -67,18 +56,14 @@ class ArchDataset(Dataset):
         self.split_set = split_set
         self.create_split = create_split
         self.percentage = percentage
+
+        data_path = CONFIG["paths"]["data_path"]
         if(self.task == "person_detection"):
-            self.data_path = os.path.join(CONFIG["paths"]["data_path"], "class_arch_data")
-            self.annotations_file = os.path.join(CONFIG["paths"]["data_path"],
-                                                 "annotations_arch_data",
-                                                 "all_data.json")
+            self.data_path = os.path.join(data_path, "class_arch_data")
+            self.annotations_file = os.path.join(data_path, "annotations_arch_data", "all_data.json")
         if(self.task == "pose_estimation"):
-            self.data_path = os.path.join(CONFIG["paths"]["data_path"],
-                                          "class_arch_poses",
-                                          "characters")
-            self.annotations_file = os.path.join(CONFIG["paths"]["data_path"],
-                                                 "annotations_arch_data",
-                                                 "arch_data_keypoints.json")
+            self.data_path = os.path.join(data_path, "class_arch_poses", "characters")
+            self.annotations_file = os.path.join(data_path, "annotations_arch_data", "arch_data_keypoints.json")
 
         # classes that correspond to person instances. Others will be filtered out
         self.filter = ["Heracles", "persecutor", "wrestler", "abductor", "abductee",
@@ -100,8 +85,7 @@ class ArchDataset(Dataset):
         self.scale_factor = exp_data["dataset"]["scale_factor"] if exp_data is not None else 0
         self.rotation_factor = exp_data["dataset"]["rot_factor"] if exp_data is not None else 0
         self.flip = exp_data["dataset"]["flip"] if exp_data is not None else False
-        self.flip_pairs = [[1, 2], [3, 4], [5, 6], [7, 8],
-                           [9, 10], [11, 12], [13, 14], [15, 16]]
+        self.flip_pairs = CONSTANTS.FLIP_PAIRS
 
         # loading annotations and obtaining desired split
         self._load_data()
@@ -110,7 +94,6 @@ class ArchDataset(Dataset):
             print_(f"Sampling only {percentage}% of ArchData training data...")
             self._get_percentage_data(percentage=percentage)
         return
-
 
     def __len__(self):
         """
@@ -122,7 +105,6 @@ class ArchDataset(Dataset):
             number of images for person detection, or number of annotated person instances
             for pose estimation.
         """
-
         if(self.task == "person_detection"):
             n_imgs = self.num_images
         elif(self.task == "pose_estimation"):
@@ -131,31 +113,21 @@ class ArchDataset(Dataset):
             n_imgs = 0
         return n_imgs
 
-
     def __getitem__(self, idx):
-        """
-        Obtaining a sample from the dataset
-        """
-
+        """ Obtaining a sample from the dataset, wits pose/bbox annotations """
         if(self.task == "person_detection"):
             input, meta = self._get_detection_item(idx)
             return input, meta
         elif(self.task == "pose_estimation"):
-            # TODO
             input, target, target_weight, meta = self._get_pose_item(idx)
             return input, target, target_weight, meta
         else:
             print(f"ERROR! Unrecognized task: '{self.task}'")
         return
 
-
     def _get_detection_item(self, idx):
-        """
-        Sampling an element from the ArchData Detection databaset
-        """
-
+        """ Sampling an element from the ArchData Detection database """
         data = copy.deepcopy(self.data[idx])
-
         image_name = data['image_name']
         image_path = data['image_path']
         image_id = data["image_id"]
@@ -163,15 +135,10 @@ class ArchDataset(Dataset):
         targets = data["targets"]
 
         if(not os.path.exists(image_path)):
-            print(image_path)
-            print(targets)
-            print(image_name)
-            assert False
-            return None, None
+            print(image_path, targets, image_name)
+            raise FileNotFoundError()
 
-        data_numpy = cv2.imread(
-            image_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
-        )
+        data_numpy = cv2.imread(image_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         data_numpy = cv2.cvtColor(data_numpy.astype(np.uint8), cv2.COLOR_BGR2RGB)
 
         original_image_size = data_numpy.shape
@@ -181,7 +148,7 @@ class ArchDataset(Dataset):
         if self.transform is not None:
             data_numpy = self.transform(data_numpy)
         else:
-            data_numpy = data_numpy.transpose(2,0,1)
+            data_numpy = data_numpy.transpose(2, 0, 1)
 
         input = data_numpy
         meta = {
@@ -193,16 +160,10 @@ class ArchDataset(Dataset):
             "original_size": original_image_size[:2],
             "perceptual_loss": 0                # for compatibility in 'Combined-db'
         }
-
         return input, meta
 
-
     def _get_pose_item(self, idx):
-        """
-        Sampling an element from the ArchData Pose Estimation dataset
-        """
-
-        # selecting database element correspond to index 'idx'
+        """ Sampling an element from the ArchData Pose Estimation dataset """
         db = copy.deepcopy(self.data[idx])
 
         # loading current image
@@ -223,8 +184,8 @@ class ArchDataset(Dataset):
         if self.split_set == "train":
             sf = self.scale_factor
             rf = self.rotation_factor
-            s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
-            r = np.clip(np.random.randn()*rf, -rf*2, rf*2) if random.random() <= 0.6 else 0
+            s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
+            r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.6 else 0
             if self.flip and random.random() <= 0.5:  # note that we dont flip archdata_kpts
                 data_numpy = data_numpy[:, ::-1, :]
                 kpts, kpt_vis = fliplr_joints(
@@ -276,15 +237,10 @@ class ArchDataset(Dataset):
             'imgnum': 0,                        # for compatibility in 'Combined-db'
             'perceptual_loss': 0                # for compatibility in 'Combined-db'
         }
-
         return input, target, target_weight, meta
 
-
     def _get_split(self):
-        """
-        Obtaining the desired dataset split
-        """
-
+        """ Obtaining the desired dataset split """
         # creating the dataset split randomly
         if(self.create_split):
             # obtaining the indices of the current split. Notice that we shuffle data
@@ -298,14 +254,13 @@ class ArchDataset(Dataset):
 
         # using the predefined cannonical dataset split (random_seed=13)
         else:
-            split_dic_path = os.path.join(CONFIG["paths"]["dict_path"],
-                                              "arch_data_det_splits.json")
+            split_dic_path = os.path.join(CONFIG["paths"]["dict_path"], "arch_data_det_splits.json")
             if(not os.path.exists(split_dic_path)):
-                print_("ERROR! Dictionary with ClassArch splits does not exist.\n "\
+                print_("ERROR! Dictionary with ClassArch splits does not exist.\n "
                        "Run 'aux_create_train_valid_arch_data.py' first...")
                 exit()
             with open(split_dic_path) as file:
-                split_dic_path= json.load(file)
+                split_dic_path = json.load(file)
             eval_idx = split_dic_path["test"]
             if(self.split_set == "train"):
                 all_idx = np.arange(start=0, stop=self.num_images)
@@ -317,9 +272,7 @@ class ArchDataset(Dataset):
         self.num_images = len(cur_idx)
         self.num_instances = len(cur_idx)
         self.data = [self.data[id] for id in cur_idx]
-
         return
-
 
     def _get_percentage_data(self, percentage=100):
         """
@@ -330,7 +283,6 @@ class ArchDataset(Dataset):
         percentage: float
             percentage of the images from the training set to use for training/fine-tuning
         """
-
         assert percentage >= 1 and percentage <= 100, "ERROR! 'Percentage' parameter "\
             f"must be in range [1, 100]. Value '{percentage}' was given."
 
@@ -339,35 +291,26 @@ class ArchDataset(Dataset):
         self.data = self.data[:img_thr]
         self.num_images = len(self.data)
         self.num_instances = len(self.data)
-
         return
-
 
     def _load_data(self):
         """
         Loading Data given the current taks
         """
-
         if(self.task == "person_detection"):
             self._load_det_data()
         elif(self.task == "pose_estimation"):
             self._load_pose_data()
         return
 
-
     def _load_det_data(self):
-        """
-        Reading person detection annotations file to preprocess the data
-        """
-        
+        """ Reading person detection annotations file to preprocess the data """
         # reading annotations file
         with open(self.annotations_file) as file:
             annotations = json.load(file)
         self.arch_labels = annotations["categories"]
-        self.arch_labels_map = {l["id"]:l["name"] for l in self.arch_labels}
-
+        self.arch_labels_map = {lbl["id"]: lbl["name"] for lbl in self.arch_labels}
         instances = annotations["annotations"]
-        n_instances = len(instances)
 
         # preprocessing annotations
         for inst in instances:
@@ -380,21 +323,18 @@ class ArchDataset(Dataset):
         self.coco.dataset = annotations
         self.coco.createIndex()
         self.image_set_index = self.coco.getImgIds()
-        
+
         # loading and processing anntoations
         self.detection_data = self._load_coco_det_data()
         self.data = np.copy(self.detection_data)
         self.num_images = len(self.detection_data)
-
         return
-
 
     def _load_pose_data(self):
         """
         Loading annotations from the pose estimation annotations file to preprocess
         data and metadata
         """
-
         # reading annotations file
         with open(self.annotations_file) as file:
             annotations = json.load(file)

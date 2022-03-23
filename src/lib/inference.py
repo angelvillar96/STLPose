@@ -1,7 +1,7 @@
 """
 Methods for performing forward pass and inference through the model
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import numpy as np

@@ -3,7 +3,7 @@ Loading data and model to compute a cyclic learning rate test.
 This auxiliar script should be called prior to training so as to find an
 adecuate learning rate for the training procedure.
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os, pdb

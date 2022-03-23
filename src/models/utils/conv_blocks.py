@@ -2,7 +2,7 @@
 Convolutional blocks used in the Lightweight OpenPose PE model
 
 EnhancePseEstimation/src/models
-@author: 
+@author: Angel Villar-Corrales 
     Adapted from Daniil Osokin:
         https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch
 """

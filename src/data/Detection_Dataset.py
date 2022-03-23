@@ -1,16 +1,12 @@
 """
 (Styled-) COCO dataset for training an object detection model
 
-EnhancePoseEstimation/src/data
-@author: 
+@author: Angel Villar-Corrales
 """
 
-from collections import defaultdict
-from collections import OrderedDict
-import os, pdb
+import os
 import copy
 import json
-import sys
 
 import numpy as np
 import cv2
@@ -18,6 +14,7 @@ import torch
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 from CONFIG import CONFIG
+
 
 class DetectionCoco(Dataset):
     """
@@ -42,8 +39,7 @@ class DetectionCoco(Dataset):
     def __init__(self, exp_data, root, img_path, labels_path, is_train=False,
                  is_styled=False, class_ids=[1], resizer=None, perceptual_loss_dict=None,
                  alpha=None, styles=None, transform=None):
-
-        # object parameters
+        """ Module initializer """
         self.exp_data = exp_data
         self.root = root
         self.img_path = img_path
@@ -73,28 +69,21 @@ class DetectionCoco(Dataset):
         self._class_to_ind = dict(zip(self.classes, range(self.num_classes)))
         self._class_to_coco_ind = dict(zip(cats, self.coco.getCatIds()))
         self._coco_ind_to_class_ind = dict(
-            [ (self._class_to_coco_ind[cls], self._class_to_ind[cls])
-              for cls in self.classes[1:] ]
-        )
+                [(self._class_to_coco_ind[cls], self._class_to_ind[cls]) for cls in self.classes[1:]]
+            )
 
         # loading data into data structure
         self.data = self._load_coco_keypoint_annotations()
         self.num_images = len(self.data)
-
         return
 
-
     def __len__(self):
-        """Obtaining the total number of samples in the dataset"""
+        """ Number of samples in the dataset """
         return self.num_images
 
-
     def __getitem__(self, idx):
-        """
-        Obtaining the data (image, annotations and metadata) given a dataset idx
-        """
-
-        data = copy.deepcopy(self.data[idx])
+        """ Obtaining the data (image, annotations and metadata) given a dataset idx """
+        data = copy.deepcopy(self.data[idx])  # TODO: why this?
 
         image_name = data['image_name']
         original_image_name = data['original_image_name']
@@ -102,9 +91,7 @@ class DetectionCoco(Dataset):
         image_id = data["image_id"]
         image_file = os.path.join(self.img_path, image_name)
 
-        data_numpy = cv2.imread(
-            image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
-        )
+        data_numpy = cv2.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         data_numpy = cv2.cvtColor(data_numpy.astype(np.uint8), cv2.COLOR_BGR2RGB)
         original_image_size = data_numpy.shape
         if self.resizer is not None:

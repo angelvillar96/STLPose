@@ -1,8 +1,7 @@
 """
 Initializing a new experiment
 
-EnhancePoseEstimation/src
-@author: 
+@author: Angel Villar-Corrales
 """
 
 import os

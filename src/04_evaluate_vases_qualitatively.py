@@ -3,7 +3,7 @@ Qualitative evaluation of the vase-data subset. The person instances are detecte
 and the poses estimated for each of the images. The results are then stored in the
 plots directory of the experiment.
 
-@author: 
+@author: Angel Villar-Corrales 
 """
 
 import os
