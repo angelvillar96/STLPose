@@ -12,6 +12,7 @@ from tqdm import tqdm
 import numpy as np
 import torch
 from torch.nn import DataParallel
+from torch.utils.tensorboard import SummaryWriter
 
 from data.data_loaders import get_detection_dataset
 import lib.arguments as arguments
@@ -52,6 +53,9 @@ class DetectorTrain:
 
         if(dataset_name is not None):
             self.exp_data["dataset"]["dataset_name"] = dataset_name
+
+        tboard_logs = os.path.join(self.exp_path, "tboard_logs")
+        self.writer = SummaryWriter(tboard_logs)
 
         self.pretrained = True
         self.cur_epoch = 0
@@ -153,10 +157,8 @@ class DetectorTrain:
                 self.scheduler.step(self.valid_ap)
                 # self.scheduler.step()
 
-            utils.update_detector_logs(self.exp_path, self.training_logs,
-                                       train_loss=self.train_loss,
-                                       valid_ap=self.valid_ap)
-
+            # updating json logs and saving checkpoint
+            utils.update_detector_logs(self.exp_path, self.training_logs, self.train_loss, self.valid_ap)
             if(epoch % self.save_frequency == 0):
                 print_("Saving model checkpoint")
                 model_setup.save_checkpoint(
@@ -167,6 +169,9 @@ class DetectorTrain:
                         exp_path=self.exp_path,
                         detector=True
                     )
+            # updating tensorboard
+            self.writer.add_scalars('detector_results/train_loss', {'train_loss': self.train_loss}, epoch+1)
+            self.writer.add_scalars('detector_results/valid_ap', {'valid_ap': self.valid_ap}, epoch+1)
 
         print_("Finished training procedure")
         print_("Saving final checkpoint")
@@ -221,6 +226,9 @@ class DetectorTrain:
             # logging
             mean_loss = np.mean(train_loss)
             progress_bar.set_description(f"Epoch {epoch+1} Iter {i+1}: Mean Loss {mean_loss}")
+            iter_ = len(self.train_loader) * epoch + i
+            if(iter_ % self.exp_params["training"]["log_frequency"] == 0):
+                self.writer.add_scalar('detector_train/loss', mean_loss, global_step=iter_)
 
             self.optimizer.zero_grad()
             loss.backward()

@@ -6,13 +6,13 @@ Configuration macros and default argument values
 
 CONFIG = {
     "paths": {
-        "data_path": "/home/corrales/MasterThesis/data",
-        "database_path": "/home/corrales/MasterThesis/EnhancedPoseEstimation/databases",
-        "experiments_path": "/home/corrales/MasterThesis/EnhancedPoseEstimation/experiments",
-        "comparisons_path": "/home/corrales/MasterThesis/EnhancedPoseEstimation/experiments/model_comparison",
-        "knn_path": "/home/corrales/MasterThesis/EnhancedPoseEstimation/knn",
-        "pretrained_path": "/home/corrales/MasterThesis/EnhancedPoseEstimation/resources",
-        "dict_path": "/home/corrales/MasterThesis/data/mapping_dicts",
+        "data_path": "../../data",
+        "database_path": "../databases",
+        "experiments_path": "../experiments",
+        "comparisons_path": "../experiments/model_comparison",
+        "knn_path": "../knn",
+        "pretrained_path": "../resources",
+        "dict_path": "../../data/mapping_dicts",
         "submission": "submission_dict.json"
     },
     "num_workers": 0,
@@ -48,6 +48,7 @@ DEFAULT_ARGS = {
         "scheduler": "plateau",
         "batch_size": 32,
         "save_frequency": 5,
+        "log_frequency": 100,
         "optimizer": "adam",
         "momentum": 0.9,
         "nesterov": False,

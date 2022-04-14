@@ -9,6 +9,7 @@ from tqdm import tqdm
 import numpy as np
 import torch
 from torch.nn import DataParallel
+from torch.utils.tensorboard import SummaryWriter
 
 import data
 import lib.arguments as arguments
@@ -53,6 +54,9 @@ class Trainer:
 
         self.exp_data = utils.load_experiment_parameters(exp_path)
         _ = update_config()
+
+        tboard_logs = os.path.join(self.exp_path, "tboard_logs")
+        self.writer = SummaryWriter(tboard_logs)
 
         # train/eval parameters
         self.train_loss = 1e18
@@ -152,9 +156,11 @@ class Trainer:
                 self.scheduler.step(self.valid_loss)
             elif(self.scheduler_type == "step"):
                 self.scheduler.step()
+            # updating training logs dictionary
             utils.update_train_logs(self.exp_path, self.training_logs, self.iterations,
                                     train_loss=self.train_loss, valid_loss=self.valid_loss,
                                     train_acc=self.train_acc, valid_acc=self.valid_acc)
+            # saving model checkpoint
             if(epoch % self.save_frequency == 0):
                 print_("Saving model checkpoint")
                 model_setup.save_checkpoint(
@@ -164,6 +170,15 @@ class Trainer:
                         epoch=epoch,
                         exp_path=self.exp_path
                     )
+            # updating Tensorboard
+            self.writer.add_scalars('pose_results/COMB_loss', {
+                'train_loss': self.train_loss,
+                'eval_loss': self.valid_loss,
+            }, epoch+1)
+            self.writer.add_scalars('pose_results/COMB_acc', {
+                'train_acc': self.train_acc,
+                'eval_acc': self.valid_acc,
+            }, epoch+1)
 
         print_("Finished training procedure")
         print_("Saving final checkpoint")
@@ -198,22 +213,24 @@ class Trainer:
             loss = self.loss_function(output, target, target_weight)
             loss = apply_perceptual_loss(exp_data=self.exp_data, params=self.params,
                                          loss=loss, perceptual_loss=metadata["perceptual_loss"])
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            # computing metrics
             cur_batch_loss = loss.item()
             batch_losses.append(cur_batch_loss)
-
-            # computing accuracy as validation metric
-            _, avg_acc, cnt, pred = metrics.accuracy(output.cpu().detach().numpy(),
-                                                     target.cpu().numpy())
+            _, avg_acc, cnt, pred = metrics.accuracy(output.cpu().detach().numpy(), target.cpu().numpy())
             accuracies.append(avg_acc)
 
             # logging
             mean_loss = np.mean(batch_losses)
             mean_acc = np.mean(accuracies)
             progress_bar.set_description(f"Epoch {epoch+1} Iter {i+1}: Mean Loss {mean_loss}. Mean Acc {mean_acc} ")
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            iter_ = len(self.train_loader) * epoch + i
+            if(iter_ % self.exp_params["training"]["log_frequency"] == 0):
+                self.writer.add_scalar('pose_train/loss', mean_loss, global_step=iter_)
+                self.writer.add_scalar('pose_train/acc', mean_acc, global_step=iter_)
 
         self.train_loss = np.mean(batch_losses)
         self.train_acc = np.mean(accuracies)
@@ -239,25 +256,35 @@ class Trainer:
             target_weight = target_weight.float().to(self.device)
 
             # forward pass (normal and flipped), and loss computation
-            output = inference.forward_pass(model=self.model, img=imgs,
-                                            model_name=self.model_name,
-                                            device=self.device, flip=False)
+            output = inference.forward_pass(
+                    model=self.model,
+                    img=imgs,
+                    model_name=self.model_name,
+                    device=self.device,
+                    flip=False
+                )
 
             # computing loss and accuracy as validation metrics
             loss = self.loss_function(output, target, target_weight)
-            loss = apply_perceptual_loss(exp_data=self.exp_data, params=self.params,
-                                         loss=loss, perceptual_loss=metadata["perceptual_loss"])
+            loss = apply_perceptual_loss(
+                    exp_data=self.exp_data,
+                    params=self.params,
+                    loss=loss,
+                    perceptual_loss=metadata["perceptual_loss"]
+                )
             cur_batch_loss = loss.item()
             batch_losses.append(cur_batch_loss)
-
-            _, avg_acc, cnt, pred = metrics.accuracy(output.cpu().numpy(),
-                                                     target.cpu().numpy())
+            _, avg_acc, cnt, pred = metrics.accuracy(output.cpu().numpy(), target.cpu().numpy())
             accuracies.append(avg_acc)
 
             # logging
             mean_loss = np.mean(batch_losses)
             mean_acc = np.mean(accuracies)
             progress_bar.set_description(f"Epoch {epoch+1} Iter {i+1}: Mean Loss {mean_loss}. Mean Acc {mean_acc}")
+            iter_ = (len(self.valid_loader) // 5) * epoch + i
+            if(iter_ % self.exp_params["training"]["log_frequency"] == 0):
+                self.writer.add_scalar('pose_valid/loss', mean_loss, global_step=iter_)
+                self.writer.add_scalar('pose_valid/acc', mean_acc, global_step=iter_)
 
         self.valid_loss = np.mean(batch_losses)
         self.valid_acc = np.mean(accuracies)
