@@ -2,8 +2,7 @@
 Auxiliary methods to handle logs, argument files and other
 functions that do not belong to any particular class
 
-EnhancePoseEstimation/src/lib
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import os
@@ -13,8 +12,9 @@ import datetime
 import numpy as np
 from matplotlib import pyplot as plt
 
-from lib.logger import Logger, log_function, print_
+from lib.logger import log_function, print_
 from CONFIG import CONFIG, DEFAULT_ARGS
+
 
 @log_function
 def create_configuration_file(exp_path, config, args):
@@ -191,10 +191,10 @@ def update_train_logs(exp_path, training_logs, iterations, train_loss, valid_los
     """
 
     logs_file = os.path.join(exp_path, "training_logs.json")
-    plots_loss_path =  os.path.join(exp_path, "plots", "loss_landscape.png")
-    plots_loss_path_log =  os.path.join(exp_path, "plots", "loss_landscape_log.png")
-    plots_acc_path =  os.path.join(exp_path, "plots", "accuracy_landscape.png")
-    plots_acc_path_log =  os.path.join(exp_path, "plots", "accuracy_landscape_log.png")
+    plots_loss_path = os.path.join(exp_path, "plots", "loss_landscape.png")
+    plots_loss_path_log = os.path.join(exp_path, "plots", "loss_landscape_log.png")
+    plots_acc_path = os.path.join(exp_path, "plots", "accuracy_landscape.png")
+    plots_acc_path_log = os.path.join(exp_path, "plots", "accuracy_landscape_log.png")
 
     # updating logs
     training_logs["last_modified"] = timestamp()
@@ -216,7 +216,7 @@ def update_train_logs(exp_path, training_logs, iterations, train_loss, valid_los
     epochs = np.arange(len(train_loss))
 
     # loss landscape plots
-    fig, ax = plt.subplots(1,1)
+    fig, ax = plt.subplots(1, 1)
     ax.plot(epochs, train_loss, label="Train")
     ax.plot(epochs, valid_loss, label="Validation")
     ax.set_xlabel("Epochs")
@@ -227,7 +227,7 @@ def update_train_logs(exp_path, training_logs, iterations, train_loss, valid_los
     plt.savefig(plots_loss_path_log)
 
     # accuracy landscape plots
-    fig, ax = plt.subplots(1,1)
+    fig, ax = plt.subplots(1, 1)
     ax.plot(epochs, train_acc, label="Train")
     ax.plot(epochs, valid_acc, label="Validation")
     ax.set_xlabel("Epochs")
@@ -321,18 +321,18 @@ def save_evaluation_stats(exp_path, stats, detector=False, dataset_name=None,
 
     stats_names = ['AP', 'Ap .5', 'AP .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5',
                    'AR .75', 'AR (M)', 'AR (L)']
-
-    if(dataset_name is None):
-        dataset_f = ""
-    else:
-        dataset_f = f"_{dataset_name}"
+    dataset_f = "" if(dataset_name is None) else f"_{dataset_name}"
 
     if(detector):
-        stats_file = os.path.join(exp_path,
-            f"detector_evaluation_stats{dataset_f}_styles_{styles}_alpha_{alpha}.json")
+        stats_file = os.path.join(
+                exp_path,
+                f"detector_evaluation_stats{dataset_f}_styles_{styles}_alpha_{alpha}.json"
+            )
     else:
-        stats_file = os.path.join(exp_path,
-            f"evaluation_stats{dataset_f}_styles_{styles}_alpha_{alpha}.json")
+        stats_file = os.path.join(
+                exp_path,
+                f"evaluation_stats{dataset_f}_styles_{styles}_alpha_{alpha}.json"
+            )
     # pairing stats name with value {name: value}
     if(os.path.exists(stats_file)):
         with open(stats_file, "r") as f:
@@ -353,11 +353,9 @@ def reset_predictions_file(exp_path):
     """
     Reseting the predictions file. It is called at the beginning of the validation epoch
     """
-
     results_path = os.path.join(exp_path, CONFIG["paths"]["submission"])
     if(os.path.exists(results_path)):
         os.remove(results_path)
-
     return
 
 
@@ -365,12 +363,10 @@ def update_predictions_file(cur_predictions, exp_path):
     """
     Loading precomputed predicitons, appending new predictions and saving in results file
     """
-
     results_path = os.path.join(exp_path, CONFIG["paths"]["submission"])
     all_results = load_predictions(results_path)
     all_results = all_results + cur_predictions
     save_predictions(all_results, results_path)
-
     return
 
 
@@ -378,13 +374,11 @@ def load_predictions(results_path):
     """
     Loading precomptured predictions from the results file
     """
-
     if(os.path.exists(results_path)):
         with open(results_path) as file:
             all_results = json.load(file)
     else:
         all_results = []
-
     return all_results
 
 
@@ -392,10 +386,8 @@ def save_predictions(pred, results_path):
     """
     Saving predcitions into the results file
     """
-
     with open(results_path, "w") as file:
         json.dump(pred, file)
-
     return
 
 
@@ -408,11 +400,9 @@ def timestamp():
     timestamp: string
         current timestamp in format hh-mm-ss
     """
-
     timestamp = str(datetime.datetime.now()).split('.')[0] \
                                             .replace(' ', '_') \
                                             .replace(':', '-')
-
     return timestamp
 
 
@@ -421,7 +411,7 @@ def for_all_methods(decorator):
     Decorator that applies a decorator to all methods inside a class
     """
     def decorate(cls):
-        for attr in cls.__dict__: # there's propably a better way to do this
+        for attr in cls.__dict__:  # there's propably a better way to do this
             if callable(getattr(cls, attr)):
                 setattr(cls, attr, decorator(getattr(cls, attr)))
         return cls

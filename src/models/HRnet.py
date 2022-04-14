@@ -1,7 +1,6 @@
 """
 High Resolution Model for Pose Estimation
 
-EnhancePoseEstimation/src/models
 Adapted from Bin Xiao:
     https://github.com/leoxiaobin/deep-high-resolution-net.pytorch
 """

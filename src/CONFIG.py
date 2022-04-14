@@ -1,11 +1,8 @@
 """
 Configuration macros and default argument values
 
-EnhancePseEstimation/src
 @author: Angel Villar-Corrales
 """
-
-import numpy as np
 
 CONFIG = {
     "paths": {

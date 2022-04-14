@@ -2,8 +2,8 @@
 
 ## Work in Progress!
 
-This respository contains the main codebase for the submission: *Enhancing Human Pose Estimation in Ancient Vase Paintings via
-Perceptually-grounded Style Transfer Learning* with Paper ID: 8558.
+This respository contains the main codebase for our paper: *Enhancing Human Pose Estimation in Ancient Vase Paintings via
+Perceptually-grounded Style Transfer Learning*
 
 
 ## Contents
@@ -18,16 +18,14 @@ Perceptually-grounded Style Transfer Learning* with Paper ID: 8558.
 
 ### Prerequisites
 
-To get the repository running, you will need several python packages, e.g., PyTorch, OpenCV, or matplotlib.
+To get the repository running, you will need several python packages, e.g., PyTorch, OpenCV, or Matplotlib.
 
-You can install them all easily and avoiding dependency issues by installing the conda environment file included in the repository. To do so, run the following command from the Conda Command Window:
+You can install them all easily and avoiding dependency issues by installing the ```conda``` environment file included in the repository. To do so, run the following command from the terminal:
 
 ```shell
 $ conda env create -f environment.yml
 $ activate enhance_pose_estimation
 ```
-
-*__Note__:* This step might take a few minutes
 
 
 ## Directory Structure
@@ -43,8 +41,6 @@ EnhancePoseEstimation
 │   └── ...
 |
 ├── experiments/
-│   ├── detector_tests/
-│   ├── hrnet_tests/
 |   └── ...
 |
 ├── knn/
@@ -58,13 +54,8 @@ EnhancePoseEstimation
 |
 ├── src/
 │   |── data/
-|   |    ├── ArchDataset.py
-|   |    ├── data_loaders.py
     |    └── ...
 │   |── lib/
-|   |    ├── arguments.py
-|   |    ├── bounding_box.py
-|   |    ├── model_setup.py
 |   |    └── ...
 │   ├── 01_create_experiment.py
 │   ├── 02_train_faster_rcnn.py
@@ -195,9 +186,14 @@ Please consider citing if you find our findings or our repository helpful.
 }
 ```
 
+## Acknowledgement
+
+Several files and functions from our codebase are inspired by the following repositories:
+ - https://github.com/HRNet/HRNet-Human-Pose-Estimation
+ - https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch
+ - https://github.com/zylo117/Yet-Another-EfficientDet-Pytorch
+
 ## Contact
 
-This work has been developed by [Angel Villar-Corrales](http://angelvillarcorrales.com/templates/home.php) and  supervised by
- [Prathmesh Madhu](https://lme.tf.fau.de/person/madhu/).
-
+This work has been developed by [Angel Villar-Corrales](http://angelvillarcorrales.com/templates/home.php).
 In case of any questions or problems regarding the project or repository, do not hesitate to contact me at villar@ais.uni-bonn.de.

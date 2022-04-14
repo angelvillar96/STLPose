@@ -145,11 +145,10 @@ class DetectorTrain:
 
         # iterating for the desired number of epochs
         for epoch in range(self.cur_epoch, self.num_epochs):
-            print_(f"########## Epoch {epoch+1}/{self.num_epochs} ##########")
             self.model.eval()
-            self.validation_epoch()
+            self.validation_epoch(epoch)
             self.model.train()
-            self.train_epoch()
+            self.train_epoch(epoch)
             if(self.scheduler is not None):
                 self.scheduler.step(self.valid_ap)
                 # self.scheduler.step()
@@ -182,12 +181,13 @@ class DetectorTrain:
             )
         return
 
-    def train_epoch(self):
+    def train_epoch(self, epoch):
         """
         Computing a training epoch: forward and backward pass for the complete training set
         """
         train_loss = []
-        for i, (imgs, metas_) in enumerate(tqdm(self.train_loader)):
+        progress_bar = tqdm(enumerate(self.train_loader))
+        for i, (imgs, metas_) in progress_bar:
 
             imgs = torch.stack(imgs)
             metas = [{k: v for k, v in t.items()} for t in metas_]
@@ -218,10 +218,9 @@ class DetectorTrain:
                 continue
             train_loss.append(loss_value)
 
-            # printing small update every few mini-batches
-            if(i % self.display_frequency == 0 and self.display_frequency > 0):
-                print_(f"    Batch {i}/{len(self.train_loader)}")
-                print_(f"        Loss: {np.mean(train_loss)}")
+            # logging
+            mean_loss = np.mean(train_loss)
+            progress_bar.set_description(f"Epoch {epoch+1} Iter {i+1}: Mean Loss {mean_loss}")
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -239,8 +238,9 @@ class DetectorTrain:
         """
 
         self.coco_evaluator = CocoEvaluator(self.coco, self.iou_types)
+        progress_bar = tqdm(enumerate(self.valid_loader))
 
-        for i, (imgs, metas_) in enumerate(tqdm(self.valid_loader)):
+        for i, (imgs, metas_) in progress_bar:
             imgs = torch.stack(imgs)
             metas = [{k: v for k, v in t.items()} for t in metas_]
             # validation only on 1/5th of the images to avoid overfitting
@@ -269,7 +269,6 @@ class DetectorTrain:
         print_("Validation Stats")
         print_(f"{stats_names}")
         print_(f"{self.valid_stats}")
-
         return
 
 

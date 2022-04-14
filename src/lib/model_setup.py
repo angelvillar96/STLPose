@@ -2,7 +2,6 @@
 Methods for initializing the model, loading checkpoints, setting up optimizers and loss
 functions, and other model-related methods
 
-EnhancePoseEstimation/src/lib
 @author: Angel Villar-Corrales
 """
 
@@ -48,8 +47,7 @@ def load_model(exp_data, checkpoint=None):
     return model
 
 
-def setup_detector(model_name="faster_rcnn", model_type="", pretrained=True,
-                   num_classes=1, **kwargs):
+def setup_detector(model_name="faster_rcnn", model_type="", pretrained=True, num_classes=1, **kwargs):
     """
     Loading (pretrained) Faster-RCNN with ResNet-50 backbone for person detection
 

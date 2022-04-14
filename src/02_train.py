@@ -1,7 +1,6 @@
 """
 Training (fine-tuning) and Validation of an HRNet Pose Estimation model
 
-EnhancePoseEstimation/src
 @author: Angel Villar-Corrales
 """
 
@@ -63,9 +62,7 @@ class Trainer:
         self.scheduler_type = self.exp_data["training"].get("scheduler", "plateau")
         self.iterations = 0
         self.cur_epoch = 0
-
         return
-
 
     def load_dataset(self):
         """
@@ -83,25 +80,21 @@ class Trainer:
             print_(f"'dataset_name' parameter changing to '{self.dataset_name}'")
             self.exp_data["dataset"]["dataset_name"] = self.dataset_name
 
-        self.perceptual_loss_dict = load_perceptual_loss_dict(exp_data=self.exp_data,
-                                                              params=self.params)
-
-        self.train_loader,\
-         self.valid_loader = data.load_dataset(exp_data=self.exp_data, train=True,
-                                               validation=True, shuffle_train=True,
-                                               shuffle_valid=False,
-                                               percentage=self.params.percentage,
-                                               perceptual_loss_dict=self.perceptual_loss_dict)
+        self.perceptual_loss_dict = load_perceptual_loss_dict(exp_data=self.exp_data, params=self.params)
+        self.train_loader, self.valid_loader = data.load_dataset(
+                exp_data=self.exp_data,
+                train=True,
+                validation=True,
+                shuffle_train=True,
+                shuffle_valid=False,
+                percentage=self.params.percentage,
+                perceptual_loss_dict=self.perceptual_loss_dict
+            )
         self.image_size = self.exp_data["dataset"]["image_size"]
-
         return
 
-
     def setup_model(self):
-        """
-        Seting up the model, the hardware and model hyperparameters
-        """
-
+        """ Seting up the model, the hardware and model hyperparameters """
         # setting up the device
         torch.backends.cudnn.fastest = True
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -113,8 +106,7 @@ class Trainer:
         self.model_name = self.exp_data["model"]["model_name"]
 
         # setting up model optimizer, learning rate scheduler and loss function
-        self.optimizer, self.scheduler = model_setup.setup_optimizer(exp_data=self.exp_data,
-                                                                     net=self.model)
+        self.optimizer, self.scheduler = model_setup.setup_optimizer(exp_data=self.exp_data, net=self.model)
         self.loss_function = PersonMSELoss()
 
         # loading pretraining checkpoint if specified
@@ -122,27 +114,28 @@ class Trainer:
             print_(f"Loading checkpoint {self.checkpoint}")
             # for resuming a training on the same dataset
             if(self.params.resume_training):
-                self.model, self.optimizer, self.scheduler, \
-                    self.cur_epoch = model_setup.load_checkpoint(self.checkpoint_path,
-                                                                 model=self.model,
-                                                                 only_model=False,
-                                                                 optimizer=self.optimizer,
-                                                                 scheduler=self.scheduler)
+                self.model, self.optimizer, self.scheduler, self.cur_epoch = model_setup.load_checkpoint(
+                        self.checkpoint_path,
+                        model=self.model,
+                        only_model=False,
+                        optimizer=self.optimizer,
+                        scheduler=self.scheduler
+                    )
                 print_(f"Resuming training from epoch {self.cur_epoch}/{self.num_epochs}.")
             # for fine-tuning on a new dataset
             else:
-                self.model = model_setup.load_checkpoint(self.checkpoint_path,
-                                                         model=self.model,
-                                                         only_model=True)
+                self.model = model_setup.load_checkpoint(
+                        self.checkpoint_path,
+                        model=self.model,
+                        only_model=True
+                    )
         return
-
 
     def training_loop(self):
         """
         Iteratively executing training and validation epochs while saving loss value
         in training logs file
         """
-
         # initializing training logs is we are starting training
         if(self.checkpoint is None or self.params.resume_training is False):
             self.training_logs = utils.create_train_logs(self.exp_path)
@@ -151,11 +144,10 @@ class Trainer:
 
         # iterating for the desired number of epochs
         for epoch in range(self.cur_epoch, self.num_epochs):
-            print_(f"########## Epoch {epoch+1}/{self.num_epochs} ##########")
             self.model.eval()
-            self.validation_epoch()
+            self.validation_epoch(epoch)
             self.model.train()
-            self.train_epoch()
+            self.train_epoch(epoch)
             if(self.scheduler_type == "plateau"):
                 self.scheduler.step(self.valid_loss)
             elif(self.scheduler_type == "step"):
@@ -164,31 +156,36 @@ class Trainer:
                                     train_loss=self.train_loss, valid_loss=self.valid_loss,
                                     train_acc=self.train_acc, valid_acc=self.valid_acc)
             if(epoch % self.save_frequency == 0):
-                print_(f"Saving model checkpoint")
-                model_setup.save_checkpoint(model=self.model, optimizer=self.optimizer,
-                                            scheduler=self.scheduler, epoch=epoch,
-                                            exp_path=self.exp_path)
+                print_("Saving model checkpoint")
+                model_setup.save_checkpoint(
+                        model=self.model,
+                        optimizer=self.optimizer,
+                        scheduler=self.scheduler,
+                        epoch=epoch,
+                        exp_path=self.exp_path
+                    )
 
-        print_(f"Finished training procedure")
-        print_(f"Saving final checkpoint")
-        model_setup.save_checkpoint(model=self.model, optimizer=self.optimizer,
-                                    scheduler=self.scheduler, epoch=self.num_epochs,
-                                    exp_path=self.exp_path, finished=True)
-
+        print_("Finished training procedure")
+        print_("Saving final checkpoint")
+        model_setup.save_checkpoint(
+                model=self.model,
+                optimizer=self.optimizer,
+                scheduler=self.scheduler,
+                epoch=self.num_epochs,
+                exp_path=self.exp_path,
+                finished=True
+            )
         return
 
-
-    def train_epoch(self):
-        """
-        Computing a training epoch: forward and backward pass for the complete training set
-        """
+    def train_epoch(self, epoch):
+        """ Computing a training epoch: forward and backward pass for the complete training set """
 
         batch_losses, accuracies = [], []
-
-        for i, (imgs, target, target_weight, metadata) in enumerate(tqdm(self.train_loader)):
+        progress_bar = tqdm(enumerate(self.train_loader))
+        for i, (imgs, target, target_weight, metadata) in progress_bar:
 
             # setting input and targets to CUDA
-            imgs, target  = imgs.float(), target.float()
+            imgs, target = imgs.float(), target.float()
             imgs, target = imgs.to(self.device), target.to(self.device)
             target_weight = target_weight.float().to(self.device)
 
@@ -209,79 +206,77 @@ class Trainer:
                                                      target.cpu().numpy())
             accuracies.append(avg_acc)
 
-            # printing small update every 250 mini-batches
-            if(i % 250 == 0 and i != 0):
-                print_(f"    Batch {i}/{len(self.train_loader)}")
-                print_(f"        Loss: {np.mean(batch_losses)}")
-                print_(f"        Accuracy: {np.mean(accuracies)}")
+            # logging
+            mean_loss = np.mean(batch_losses)
+            mean_acc = np.mean(accuracies)
+            progress_bar.set_description(f"Epoch {epoch+1} Iter {i+1}: Mean Loss {mean_loss}. Mean Acc {mean_acc} ")
 
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
 
-
         self.train_loss = np.mean(batch_losses)
         self.train_acc = np.mean(accuracies)
         print_(f"Train Loss: {self.train_loss}")
         print_(f"Train Accuracy: {self.train_acc}")
-
         return
 
-
-    def validation_epoch(self):
-        """
-        Computing a validation epoch: forward pass for estimating poses and keypoints.
-        """
+    @torch.no_grad()
+    def validation_epoch(self, epoch):
+        """ Computing a validation epoch: forward pass for estimating poses and keypoints """
 
         batch_losses, accuracies = [], []
-        all_boxes, all_preds, image_names = [], [], []
+        progress_bar = tqdm(enumerate(self.valid_loader))
+        for i, (imgs, target, target_weight, metadata) in progress_bar:
 
-        with torch.no_grad():
-            for i, (imgs, target, target_weight, metadata) in enumerate(tqdm(self.valid_loader)):
+            # we simply use a small subset of 1/5 of total data for validation
+            if(i >= len(self.valid_loader) // 5):
+                break
 
-                # we simply use a small subset of 1/5 of total data for validation
-                if(i >= len(self.valid_loader) // 5):
-                    break
+            # setting input and targets to CUDA
+            imgs, target = imgs.float(), target.float()
+            imgs, target = imgs.to(self.device), target.to(self.device)
+            target_weight = target_weight.float().to(self.device)
 
-                # setting input and targets to CUDA
-                imgs, target  = imgs.float(), target.float()
-                imgs, target = imgs.to(self.device), target.to(self.device)
-                target_weight = target_weight.float().to(self.device)
+            # forward pass (normal and flipped), and loss computation
+            output = inference.forward_pass(model=self.model, img=imgs,
+                                            model_name=self.model_name,
+                                            device=self.device, flip=False)
 
-                # forward pass (normal and flipped), and loss computation
-                output = inference.forward_pass(model=self.model, img=imgs,
-                                                model_name=self.model_name,
-                                                device=self.device, flip=False)
+            # computing loss and accuracy as validation metrics
+            loss = self.loss_function(output, target, target_weight)
+            loss = apply_perceptual_loss(exp_data=self.exp_data, params=self.params,
+                                         loss=loss, perceptual_loss=metadata["perceptual_loss"])
+            cur_batch_loss = loss.item()
+            batch_losses.append(cur_batch_loss)
 
-                # computing loss and accuracy as validation metrics
-                loss = self.loss_function(output, target, target_weight)
-                loss = apply_perceptual_loss(exp_data=self.exp_data, params=self.params,
-                                             loss=loss, perceptual_loss=metadata["perceptual_loss"])
-                cur_batch_loss = loss.item()
-                batch_losses.append(cur_batch_loss)
+            _, avg_acc, cnt, pred = metrics.accuracy(output.cpu().numpy(),
+                                                     target.cpu().numpy())
+            accuracies.append(avg_acc)
 
-                _, avg_acc, cnt, pred = metrics.accuracy(output.cpu().numpy(),
-                                                         target.cpu().numpy())
-                accuracies.append(avg_acc)
+            # logging
+            mean_loss = np.mean(batch_losses)
+            mean_acc = np.mean(accuracies)
+            progress_bar.set_description(f"Epoch {epoch+1} Iter {i+1}: Mean Loss {mean_loss}. Mean Acc {mean_acc}")
 
         self.valid_loss = np.mean(batch_losses)
         self.valid_acc = np.mean(accuracies)
         print_(f"Valid Loss: {self.valid_loss}")
         print_(f"Valid Accuracy: {self.valid_acc}")
-
         return
-
 
 
 if __name__ == "__main__":
 
     os.system("clear")
-    exp_path, checkpoint, dataset, \
-        params = arguments.get_directory_argument(get_checkpoint=True, get_dataset=True)
+    exp_path, checkpoint, dataset, params = arguments.get_directory_argument(
+            get_checkpoint=True,
+            get_dataset=True
+        )
 
     # initializing logger and logging the beggining of the experiment
     logger = Logger(exp_path)
-    message = f"Initializing training procedure"
+    message = "Initializing training procedure"
     logger.log_info(message=message, message_type="new_exp")
     logger.log_params(params=vars(params))
 
@@ -291,6 +286,6 @@ if __name__ == "__main__":
     trainer.load_dataset()
     trainer.setup_model()
     trainer.training_loop()
-    logger.log_info(message=f"Training finished successfully")
+    logger.log_info(message="Training finished successfully")
 
 #

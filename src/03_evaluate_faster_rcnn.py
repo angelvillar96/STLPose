@@ -1,32 +1,22 @@
 """
 Evaluating the faster rcnn (or other model) for the task of person detection
 
-EnhancePoseEstimation/src
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
-import os, pdb
-import math
-import time
+import os
 from tqdm import tqdm
-
-import numpy as np
 import torch
 from torch.nn import DataParallel
 
 from data.data_loaders import get_detection_dataset
-import data.data_processing as data_processing
 import lib.arguments as arguments
 from lib.bounding_box import bbox_filtering, bbox_nms
 import lib.model_setup as model_setup
-import lib.inference as inference
-import lib.metrics as metrics
-import lib.loss as loss
 import lib.utils as utils
 from lib.visualizations import visualize_bbox
 from lib.logger import Logger, log_function, print_
 from lib.utils import for_all_methods, load_experiment_parameters
-from CONFIG import CONFIG
 
 from lib.detection_coco_utils import get_coco_api_from_dataset
 from lib.detection_coco_eval import CocoEvaluator
@@ -47,9 +37,7 @@ class DetectorEvaluator:
     """
 
     def __init__(self, exp_path, checkpoint=None, dataset_name=None, params=None):
-        """
-        Initializer of the detector evaluation object
-        """
+        """ Initializer of the detector evaluation object """
 
         self.exp_path = exp_path
         self.checkpoint = checkpoint
@@ -72,9 +60,7 @@ class DetectorEvaluator:
         self.num_classes = len(self.class_ids)
         self.bbox_thr = self.exp_data["evaluation"]["bbox_thr"]
         self.det_nms_thr = self.exp_data["evaluation"]["det_nms_thr"]
-
         return
-
 
     def load_detection_dataset(self):
         """
@@ -92,48 +78,43 @@ class DetectorEvaluator:
             self.exp_data["dataset"]["styles"] = self.params.styles
 
         self.dataset_name = self.exp_data["dataset"]["dataset_name"]
-        _, valid_loader  = get_detection_dataset(exp_data=self.exp_data, train=False,
-                                                 validation=True, shuffle_train=True,
-                                                 shuffle_valid=False, class_ids=self.class_ids)
+        _, valid_loader = get_detection_dataset(
+                exp_data=self.exp_data,
+                train=False,
+                validation=True,
+                shuffle_train=True,
+                shuffle_valid=False,
+                class_ids=self.class_ids
+            )
         self.valid_loader = valid_loader
 
         self.coco = get_coco_api_from_dataset(self.valid_loader.dataset)
         self.iou_types = ["bbox"]
-
         return
 
-
     def load_detector_model(self):
-        """
-        Loading the pretrained person detector model
-        """
-
+        """ Loading the pretrained person detector model """
         # setting up the device
         torch.backends.cudnn.fastest = True
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         model_name = self.exp_data["model"]["detector_name"]
         model_type = self.exp_data["model"]["detector_type"]
-        model = model_setup.setup_detector(model_name=model_name, model_type=model_type,
-                                           pretrained=True, num_classes=self.num_classes)
+        model = model_setup.setup_detector(
+                model_name=model_name,
+                model_type=model_type,
+                pretrained=True,
+                num_classes=self.num_classes
+            )
         model.eval()
-
-        if(model_name == "faster_rcnn"):
-            model = DataParallel(model).to(self.device)
+        model = DataParallel(model).to(self.device)
 
         # loading pretraining checkpoint if specified
         if(self.checkpoint is not None):
             print_(f"Loading checkpoint {self.checkpoint}")
-            model = model_setup.load_checkpoint(self.checkpoint_path, model=model,
-                                                only_model=True)
-
-        if(model_name == "efficientdet"):
-            model = DataParallel(model).to(self.device)
-
+            model = model_setup.load_checkpoint(self.checkpoint_path, model=model, only_model=True)
         self.model = model.to(self.device)
-
         return
-
 
     @torch.no_grad()
     def evaluate(self):
@@ -145,13 +126,11 @@ class DetectorEvaluator:
         save: boolean
             If True, processed images are saved into the plots directory
         """
-
         self.model.eval()
         self.coco_evaluator = CocoEvaluator(self.coco, self.iou_types)
         self.n_img = 0
 
         for i, (imgs, metas_) in enumerate(tqdm(self.valid_loader)):
-
             imgs = torch.stack(imgs)
             metas = [{k: v for k, v in t.items()} for t in metas_]
 
@@ -162,7 +141,6 @@ class DetectorEvaluator:
             # mapping image ids with annotatons and outputs
             outputs = [{k: v.cpu() for k, v in t.items()} for t in outputs_]
             res = {meta["image_id"]: output for meta, output in zip(metas, outputs)}
-
             self.coco_evaluator.update(res)
 
             # saving images if flag is set to True
@@ -174,9 +152,14 @@ class DetectorEvaluator:
             for i in range(imgs.shape[0]):
                 savepath = os.path.join(self.plots_path, f"test_img_{self.n_img+1}.png")
                 self.n_img = self.n_img + 1
-                visualize_bbox(imgs[i,:].cpu().numpy().transpose(1,2,0) / 255,
-                               boxes=boxes[i], labels=labels[i], scores=scores[i],
-                               savepath=savepath, axis_off=True)
+                visualize_bbox(
+                        imgs[i, :].cpu().numpy().transpose(1, 2, 0) / 255,
+                        boxes=boxes[i],
+                        labels=labels[i],
+                        scores=scores[i],
+                        savepath=savepath,
+                        axis_off=True
+                    )
 
         # accumulate predictions from all images and computing evaluation metric
         self.coco_evaluator.synchronize_between_processes()
@@ -189,26 +172,28 @@ class DetectorEvaluator:
         print_(f"{stats_names}")
         print_(f"{self.valid_stats}")
 
-        utils.save_evaluation_stats(stats=self.valid_stats,
-                                    exp_path=self.exp_path,
-                                    detector=True,
-                                    checkpoint = self.checkpoint,
-                                    dataset_name=self.dataset_name,
-                                    alpha=self.exp_data["dataset"]["alpha"],
-                                    styles=self.exp_data["dataset"]["styles"])
+        utils.save_evaluation_stats(
+                stats=self.valid_stats,
+                exp_path=self.exp_path,
+                detector=True,
+                checkpoint=self.checkpoint,
+                dataset_name=self.dataset_name,
+                alpha=self.exp_data["dataset"]["alpha"],
+                styles=self.exp_data["dataset"]["styles"]
+            )
         return
 
 
 if __name__ == "__main__":
-
     os.system("clear")
-    exp_path, checkpoint, dataset_name, \
-         params = arguments.get_directory_argument(get_checkpoint=True,
-                                                   get_dataset=True)
+    exp_path, checkpoint, dataset_name, params = arguments.get_directory_argument(
+            get_checkpoint=True,
+            get_dataset=True
+        )
 
     # initializing logger and logging the beggining of the experiment
     logger = Logger(exp_path)
-    message = f"Initializing Faster-RCNN evaluation procedure"
+    message = "Initializing Faster-RCNN evaluation procedure"
     logger.log_info(message=message, message_type="new_exp")
 
     evaluator = DetectorEvaluator(exp_path=exp_path, checkpoint=checkpoint,
@@ -217,7 +202,7 @@ if __name__ == "__main__":
     evaluator.load_detector_model()
     evaluator.evaluate()
 
-    logger.log_info(message=f"Evaluation of the Faster-RCNN finished successfully")
+    logger.log_info(message="Evaluation of the Faster-RCNN finished successfully")
 
 
 #

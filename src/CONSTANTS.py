@@ -2,7 +2,6 @@
 Constansts (e.g., keypoint order and paf connections) for the different pretrained models and
 for the inference logic
 
-EnhancePoseEstimation/src
 @author: Angel Villar-Corrales
 """
 

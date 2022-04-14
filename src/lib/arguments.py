@@ -1,7 +1,6 @@
 """
 Methods for reading and processing command line arguments
 
-EnhancePoseEstimation/src/lib
 @author: Angel Villar-Corrales
 """
 

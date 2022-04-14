@@ -2,7 +2,7 @@
 Transforms used during the preprocessing steps: normalizing to zero-mean and unit variance,
 flipping image and keypoints, affine transforms for crops and bounding boxes, ...
 
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import numpy as np
@@ -15,16 +15,10 @@ class TransformDetection():
     """
     Extracting a detection from an image given the bbox coordiantes. The detection
     keeps a certain aspect ration and it should be centered at the person
-
-    Args:
-    -----
     """
 
     def __init__(self, det_width=192, det_height=256):
-        """
-        Initializer of the Transform object
-        """
-
+        """ Initializer of the Transform object """
         self.det_width = det_width
         self.det_height = det_height
         self.image_size = np.array([det_width, det_height])
@@ -34,10 +28,7 @@ class TransformDetection():
         return
 
     def __call__(self, img, list_coords):
-        """
-        Extracting the detection given the full image and the bbox coords
-        """
-
+        """ Extracting the detection given the full image and the bbox coords """
         detections = []
         centers = []
         scales = []
@@ -59,23 +50,17 @@ class TransformDetection():
         detections = np.array(detections)
         centers = np.array(centers)
         scales = np.array(scales)
-
-        # if(len(detections)==1):
-            # detections = detections[np.newaxis,:]
-        if(len(detections) ==0):
+        if(len(detections) == 0):
             return detections, centers, scales
         try:
-            detections = detections.transpose(0,3,1,2)
-        except:
+            detections = detections.transpose(0, 3, 1, 2)
+        except ValueError:
             print(detections.shape)
             exit()
         return detections, centers, scales
 
     def _coords2cs(self, coords):
-        """
-        Converting a bounding box (xmin, ymin, xmax, ymax) to (center, scale)
-        """
-
+        """ Converting a bounding box (xmin, ymin, xmax, ymax) to (center, scale) """
         xmin, ymin, xmax, ymax = coords
         x, y = xmin, ymin
         w, h = (xmax - xmin), (ymax - ymin)
@@ -97,7 +82,6 @@ class TransformDetection():
         return center, scale
 
 
-
 class Normalize():
     """
     Normalizing images by substracting mean and dividing by standard deviation.
@@ -112,9 +96,7 @@ class Normalize():
     """
 
     def __init__(self, mean=(128, 128, 128), std=256):
-        """
-        Initializer of the Normalizer object
-        """
+        """ Initializer of the Normalizer object """
 
         self.mean = mean
         self.std = std
@@ -122,9 +104,7 @@ class Normalize():
         return
 
     def __call__(self, img):
-        """
-        Normalizing the image
-        """
+        """ Normalizing the image """
 
         img = np.array(img, dtype=np.float32)
         norm_img = (img - self.mean) / self.std
@@ -146,30 +126,21 @@ def prepare_image_detector(img):
     img: torch Tensor
         Image as an torch Tensor with shape (1,3,H,W) and in range [0,1]
     """
-
-    img = img.transpose(2,0,1)
+    img = img.transpose(2, 0, 1)
     img = img.reshape(1, *img.shape)
     img = torch.Tensor(img) / 255
-
     return img
 
 
 def unnormalize(img):
-    """
-    Undoing the default COCO normalization. Output image will be in range [0,1]
-    """
-
+    """ Undoing the default COCO normalization. Output image will be in range [0,1] """
     if(torch.max(img) > 50):
         img = img / 255
         return img
-
     mean = np.array([0.485, 0.456, 0.406])
     std = np.array([0.229, 0.224, 0.225])
-    unnormalize_img = transforms.Normalize(
-        mean =(-mean / std).tolist(), std=(1.0 / std).tolist()
-    )
+    unnormalize_img = transforms.Normalize(mean=(-mean / std).tolist(), std=(1.0 / std).tolist())
     img = unnormalize_img(img)
-
     return img
 
 
@@ -178,11 +149,9 @@ def flip_back(output_flipped, matched_parts):
     ouput_flipped: numpy array
         (batch_size, num_joints, height, width)
     """
+    assert output_flipped.ndim == 4, 'output_flipped should be [batch_size, num_joints, height, width]'
 
-    assert output_flipped.ndim == 4,\
-        'output_flipped should be [batch_size, num_joints, height, width]'
-
-    if( torch.is_tensor(output_flipped)):
+    if(torch.is_tensor(output_flipped)):
         output_flipped = output_flipped.cpu().detach().numpy()
 
     output_flipped = output_flipped[:, :, :, ::-1]
@@ -265,42 +234,30 @@ def get_affine_transform(center, scale, rot, output_size,
 
 
 def affine_transform(pt, t):
-    """
-    Applying an affine trainsform to an image or image section
-    """
-
+    """ Applying an affine trainsform to an image or image section """
     new_pt = np.array([pt[0], pt[1], 1.]).T
     new_pt = np.dot(t, new_pt)
     return new_pt[:2]
 
 
 def get_3rd_point(a, b):
-    """
-    """
-
+    """ """
     direct = a - b
     return b + np.array([-direct[1], direct[0]], dtype=np.float32)
 
 
 def get_dir(src_point, rot_rad):
-    """
-    Rotating a keypoint coordinate by a certain amount of angles
-    """
-
+    """ Rotating a keypoint coordinate by a certain amount of angles """
     sn, cs = np.sin(rot_rad), np.cos(rot_rad)
 
     src_result = [0, 0]
     src_result[0] = src_point[0] * cs - src_point[1] * sn
     src_result[1] = src_point[0] * sn + src_point[1] * cs
-
     return src_result
 
 
 def crop(img, center, scale, output_size, rot=0):
-    """
-    Cropping and scaling a part of an image given its center and scale
-    """
-
+    """ Cropping and scaling a part of an image given its center and scale """
     trans = get_affine_transform(center, scale, rot, output_size)
 
     dst_img = cv2.warpAffine(

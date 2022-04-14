@@ -1,11 +1,8 @@
 """
 Methods for visualization of images, targets and overlays
 
-EnhancePoseEstimation/src/lib
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
-
-import os
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -64,18 +61,18 @@ def draw_pose(img, poses, all_keypoints, **kwargs):
     else:
         ax = kwargs["ax"]
 
-    if("bgr" in kwargs and kwargs["bgr"] == True):
-        img = np.array([img[2,:,:], img[1,:,:], img[0,:,:]])
-    if("preprocess" in kwargs and kwargs["preprocess"] == True):
+    if("bgr" in kwargs and kwargs["bgr"]):
+        img = np.array([img[2, :, :], img[1, :, :], img[0, :, :]])
+    if("preprocess" in kwargs and kwargs["preprocess"]):
         img = custom_transforms.unnormalize(torch.Tensor(img))
-        img = img.numpy().transpose(1,2,0)
+        img = img.numpy().transpose(1, 2, 0)
     ax.imshow(img)
 
     for pose in poses:
         pose = pose[:-2]  # removing num_kpts and score
         for idx, limb in enumerate(pose_parsing.SKELETON):
             # drawing circles
-            if(limb[0] < 0 and limb[1] < 0): # for simplified skeleton
+            if(limb[0] < 0 and limb[1] < 0):  # for simplified skeleton
                 continue
             idx_a, idx_b = int(pose[limb[0]]), int(pose[limb[1]])
             if(idx_a == -1 or idx_b == -1):
@@ -83,18 +80,28 @@ def draw_pose(img, poses, all_keypoints, **kwargs):
             a, b = all_keypoints[idx_a], all_keypoints[idx_b]
             if(a[-1] == 0 or b[-1] == 0):
                 continue
-            if( (a[0]+a[1])<=1 or (b[0]+b[1])<=1):
+            if((a[0] + a[1]) <= 1 or (b[0] + b[1]) <= 1):
                 continue
             color = COLORS[str(idx)]
             line = mlines.Line2D(
                     np.array([a[1], b[1]]), np.array([a[0], b[0]]),
                     ls='-', lw=5, alpha=1, color=color)
-            circle1 = mpatches.Circle(np.array([a[1], a[0]]), radius=5,
-                                     ec='black', fc=color,
-                                     alpha=1, linewidth=5)
-            circle2 = mpatches.Circle(np.array([b[1], b[0]]), radius=5,
-                                     ec='black', fc=color,
-                                     alpha=1, linewidth=5)
+            circle1 = mpatches.Circle(
+                    np.array([a[1], a[0]]),
+                    radius=5,
+                    ec='black',
+                    fc=color,
+                    alpha=1,
+                    linewidth=5
+                )
+            circle2 = mpatches.Circle(
+                    np.array([b[1], b[0]]),
+                    radius=5,
+                    ec='black',
+                    fc=color,
+                    alpha=1,
+                    linewidth=5
+                )
             line.set_zorder(1)
             circle1.set_zorder(2)
             circle2.set_zorder(2)
@@ -117,35 +124,29 @@ def draw_pose(img, poses, all_keypoints, **kwargs):
     return ax
 
 
-def draw_skeleton(kpts, shape=(256,192,3), **kwargs):
-    """
-    Drawing a skeleton on a blank image
-    """
-
+def draw_skeleton(kpts, shape=(256, 192, 3), **kwargs):
+    """ Drawing a skeleton on a blank image """
     blank_image = np.zeros(shape)
-    kpts[:,-1] = 1  # adding visibility
+    kpts[:, -1] = 1  # adding visibility
     kpts = [kpts[:, 1], kpts[:, 0], kpts[:, 2]]
     kpts = np.array(kpts).T
     draw_pose(img=blank_image, poses=[np.arange(19)], all_keypoints=kpts, **kwargs)
-
     return
 
 
 def visualize_image(img, **kwargs):
-    """
-    Visualizing an image accouting for the BGR format
-    """
+    """ Visualizing an image accouting for the BGR format """
 
     if("ax" not in kwargs):
         plt.figure(figsize=(8, 8))
         ax = plt.gca()
     else:
         ax = kwargs["ax"]
-    if("bgr" in kwargs and kwargs["bgr"] == True):
-        img = np.array([img[2,:,:], img[1,:,:], img[0,:,:]])
+    if("bgr" in kwargs and kwargs["bgr"]):
+        img = np.array([img[2, :, :], img[1, :, :], img[0, :, :]])
     if("preprocess" in kwargs):
         img = custom_transforms.unnormalize(torch.Tensor(img))
-        img = img.numpy().transpose(1,2,0)
+        img = img.numpy().transpose(1, 2, 0)
 
     ax.imshow(img)
 
@@ -167,99 +168,15 @@ def visualize_instances(imgs, **kwargs):
     """
 
     n_humans = imgs.shape[0]
-    fig, ax = plt.subplots(1,n_humans)
+    fig, ax = plt.subplots(1, n_humans)
     fig.set_size_inches(5*n_humans, 5)
     for i in range(n_humans):
         if(n_humans == 1):
-            visualize_image(np.array(imgs[i,:]), ax=ax, title=f"Person {i+1}",
-                            preprocess=True)
+            visualize_image(np.array(imgs[i, :]), ax=ax, title=f"Person {i+1}", preprocess=True)
         else:
-            visualize_image(np.array(imgs[i,:]), ax=ax[i], title=f"Person {i+1}",
-                            preprocess=True)
+            visualize_image(np.array(imgs[i, :]), ax=ax[i], title=f"Person {i+1}", preprocess=True)
     plt.tight_layout()
     plt.show()
-
-    return
-
-
-def overlay_heatmap(heatmap, img, ax=None, **kwargs):
-    """
-    Overlaying a heatmap on top of the original image
-    """
-
-    # heatmap_vis = (heatmap) * 255
-    # heatmap_vis = np.round(heatmap_vis).astype(int)
-
-    if("bgr" in kwargs and kwargs["bgr"] == True):
-        img = np.array([img[2,:,:], img[1,:,:], img[0,:,:]])
-    img = custom_transforms.unnormalize(torch.Tensor(img))
-    img = img.numpy().transpose(1,2,0)
-
-    disp = img
-    disp[:,:,0] = img[:,:,0] + heatmap
-    disp = np.clip(disp, a_min=0, a_max=1)
-    ax.imshow(disp)
-
-    if("title" in kwargs):
-        ax.set_title(kwargs["title"])
-    if("axis_off" in kwargs):
-        ax.axis("off")
-
-    return
-
-
-def overlay_paf(pafs, img, ax=None, **kwargs):
-    """
-    Overlaying pafs on top of the original image
-    """
-
-    pafs[np.abs(pafs)<1e-1] = 0
-    paf_disp = np.logical_or(pafs[0,:], pafs[1, :])*255
-
-    if("bgr" in kwargs and kwargs["bgr"] == True):
-        img = np.array([img[2,:,:], img[1,:,:], img[0,:,:]])
-    image_vis = img.transpose(1,2,0)*256 + 128
-    image_vis = np.round(image_vis).astype(int)
-
-    disp = image_vis
-    disp[:,:,0] = paf_disp
-    disp = np.round(disp).astype(int)
-    ax.imshow(disp)
-
-    if("title" in kwargs):
-        ax.set_title(kwargs["title"])
-
-    return
-
-
-def visualize_heatmap(heatmap, ax, fig=None, **kwargs):
-    """
-    Visualizing the heatmaps in the given figure
-    """
-
-    heatmap_vis = (1 - heatmap)*255
-    heatmap_vis = np.round(heatmap_vis).astype(int)
-    ax.imshow(heatmap_vis)
-
-    if("title" in kwargs):
-        ax.set_title(kwargs["title"])
-
-    return
-
-
-def visualize_paf(paf, ax, fig=None, **kwargs):
-    """
-    Visualizing the paf in the given figure
-    """
-
-    img_vis = np.zeros(paf.shape)
-    idx = np.argwhere(paf>0)
-    img_vis[idx[:,0],idx[:,1]] = 255
-
-    ax.imshow(img_vis)
-
-    if("title" in kwargs):
-        ax.set_title(kwargs["title"])
 
     return
 
@@ -283,16 +200,15 @@ def visualize_bbox(img, boxes, labels=None, scores=None, ax=None, **kwargs):
 
     # initializing axis object if necessary
     if(ax is None):
-        fig, ax = plt.subplots(1,1)
-        fig.set_size_inches(6,6)
+        fig, ax = plt.subplots(1, 1)
+        fig.set_size_inches(6, 6)
 
-    if("bgr" in kwargs and kwargs["bgr"] == True):
-        img = np.array([img[2,:,:], img[1,:,:], img[0,:,:]])
-    if("preprocess" in kwargs and kwargs["preprocess"] == True):
+    if("bgr" in kwargs and kwargs["bgr"]):
+        img = np.array([img[2, :, :], img[1, :, :], img[0, :, :]])
+    if("preprocess" in kwargs and kwargs["preprocess"]):
         img = custom_transforms.unnormalize(torch.Tensor(img))
-        img = img.numpy().transpose(1,2,0)
+        img = img.numpy().transpose(1, 2, 0)
     ax.imshow(img)
-
 
     if("title" in kwargs):
         ax.set_title(kwargs["title"])
@@ -311,8 +227,7 @@ def visualize_bbox(img, boxes, labels=None, scores=None, ax=None, **kwargs):
         x, y = bb[0], bb[1]
         height = bb[3] - bb[1]
         width = bb[2] - bb[0]
-        ax.add_patch(plt.Rectangle((x, y), width, height, fill=False,
-                                    edgecolor='red', linewidth=5))
+        ax.add_patch(plt.Rectangle((x, y), width, height, fill=False, edgecolor='red', linewidth=5))
 
         message = None
         if(scores is not None or arch_labels is not None):
@@ -323,11 +238,10 @@ def visualize_bbox(img, boxes, labels=None, scores=None, ax=None, **kwargs):
             ax.text(bb[0], bb[1], message, style='italic',
                     bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 0})
 
-    if("axis_off" in kwargs and kwargs["axis_off"]==True):
+    if("axis_off" in kwargs and kwargs["axis_off"]):
         plt.axis("off")
     if("savepath" in kwargs):
         plt.savefig(kwargs["savepath"], bbox_inches='tight', pad_inches=0)
-        # plt.savefig(kwargs["savepath"])
 
     return
 
@@ -342,32 +256,32 @@ def visualize_subset_heatmaps(img, heatmaps, savepath=None, fig=None):
 
     for i in range(3):
 
-        cur_img = np.array(img[i,:])
-        cur_img = np.array([cur_img[2,:,:], cur_img[1,:,:], cur_img[0,:,:]])
-        cur_img = cur_img.transpose(1,2,0)*256 + 128
+        cur_img = np.array(img[i, :])
+        cur_img = np.array([cur_img[2, :, :], cur_img[1, :, :], cur_img[0, :, :]])
+        cur_img = cur_img.transpose(1, 2, 0) * 256 + 128
         cur_img = np.round(cur_img).astype(int)
-        cur_heatmap = np.array(heatmaps[i,-1,:])
+        cur_heatmap = np.array(heatmaps[i, -1, :])
 
-        plt.subplot(3,3,3*i+1)
+        plt.subplot(3, 3, 3*i+1)
         plt.imshow(cur_img)
         plt.title("Original Image")
         plt.axis("off")
 
-        plt.subplot(3,3,3*i+2)
+        plt.subplot(3, 3, 3*i+2)
         heatmap_vis = (1 - cur_heatmap)*255
         heatmap_vis = np.round(heatmap_vis).astype(int)
         plt.imshow(heatmap_vis)
-        plt.title(f"Keypoint Maps")
+        plt.title("Keypoint Maps")
         plt.axis("off")
 
-        plt.subplot(3,3,3*i+3)
-        img_vis = cur_img[:,:,:]*0.5
-        img_vis[:,:,0] = img_vis[:,:,0] + heatmap_vis
-        img_vis[:,:,1] = img_vis[:,:,1] + heatmap_vis
-        img_vis[:,:,2] = img_vis[:,:,2] + heatmap_vis
+        plt.subplot(3, 3, 3*i+3)
+        img_vis = cur_img[:, :, :]*0.5
+        img_vis[:, :, 0] = img_vis[:, :, 0] + heatmap_vis
+        img_vis[:, :, 1] = img_vis[:, :, 1] + heatmap_vis
+        img_vis[:, :, 2] = img_vis[:, :, 2] + heatmap_vis
         img_vis = np.round(img_vis).astype(int)
         plt.imshow(img_vis)
-        plt.title(f"Overlay")
+        plt.title("Overlay")
         plt.axis("off")
     plt.tight_layout()
 
@@ -386,32 +300,32 @@ def visualize_subset_pafs(img, pafs, savepath=None, fig=None):
         plt.figure()
 
     for i in range(3):
-        cur_img = np.array(img[i,:])
-        cur_img = np.array([cur_img[2,:,:], cur_img[1,:,:], cur_img[0,:,:]])
-        cur_img = cur_img.transpose(1,2,0)*256 + 128
+        cur_img = np.array(img[i, :])
+        cur_img = np.array([cur_img[2, :, :], cur_img[1, :, :], cur_img[0, :, :]])
+        cur_img = cur_img.transpose(1, 2, 0)*256 + 128
         cur_img = np.round(cur_img).astype(int)
-        cur_paf = np.abs(pafs[i,0,:]) + np.abs(pafs[i,4,:]) + np.abs(pafs[i,8,:])
+        cur_paf = np.abs(pafs[i, 0, :]) + np.abs(pafs[i, 4, :]) + np.abs(pafs[i, 8, :])
 
-        plt.subplot(3,3,3*i+1)
+        plt.subplot(3, 3, 3*i+1)
         plt.imshow(cur_img)
         plt.title("Original Image")
         plt.axis("off")
 
-        plt.subplot(3,3,3*i+2)
+        plt.subplot(3, 3, 3*i+2)
         cur_paf_vis = np.round(np.clip(cur_paf*1000, 0, 255)).astype(int)
         plt.imshow(cur_paf_vis)
-        plt.title(f"PAFs")
+        plt.title("PAFs")
         plt.axis("off")
 
-        plt.subplot(3,3,3*i+3)
-        idx = np.argwhere(cur_paf>0)
-        cur_img[idx[:,0],idx[:,1],0] = 255
-        cur_img[idx[:,0],idx[:,1],1] = 0
-        cur_img[idx[:,0],idx[:,1],2] = 0
+        plt.subplot(3, 3, 3*i+3)
+        idx = np.argwhere(cur_paf > 0)
+        cur_img[idx[:, 0], idx[:, 1], 0] = 255
+        cur_img[idx[:, 0], idx[:, 1], 1] = 0
+        cur_img[idx[:, 0], idx[:, 1], 2] = 0
         cur_img = np.clip(cur_img, 0, 255)
         cur_img = np.round(cur_img).astype(int)
         plt.imshow(cur_img)
-        plt.title(f"Overlay")
+        plt.title("Overlay")
         plt.axis("off")
     plt.tight_layout()
 

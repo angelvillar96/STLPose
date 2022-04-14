@@ -6,8 +6,6 @@ Methods for parsing the huma pose given the Heatmaps and PAFs
 
 import numpy as np
 import torch.nn.functional as F
-from skimage.feature import peak_local_max
-
 import lib.transforms as custom_transforms
 
 # constants
