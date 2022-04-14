@@ -20,7 +20,7 @@ def main():
     """
 
     exp_path, params = arguments.get_directory_argument()
-    alpha = params.alpha 
+    alpha = params.alpha
     style = params.styles
     exp_data = utils.load_experiment_parameters(exp_path)
 

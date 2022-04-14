@@ -6,12 +6,11 @@ Loading the dataset and displaying the stats to then include in the report
 TODO: Rework this file. e.g. dataset is hardwired
 """
 
-import os, pdb
+import os
 
 import numpy as np
 
 from data.data_loaders import get_detection_dataset, load_dataset
-import data.data_processing as data_processing
 from lib.utils import load_experiment_parameters, create_directory
 from lib.visualizations import visualize_bbox
 from CONFIG import CONFIG
