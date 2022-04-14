@@ -3,13 +3,12 @@ Performing a retrieval experiment for the arch_data dataset. It works as follows
     - For each query, we obtaine the top-N retrievals for a certain metric
     - We measure retrieval performance using several approaches
 
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import os
 import copy
 import json
-import argparse
 from time import time
 from tqdm import tqdm
 
@@ -18,13 +17,8 @@ import numpy as np
 from lib.arguments import process_retrieval_arguments
 from lib.logger import Logger, log_function, print_
 from lib.metrics import score_retrievals
-from lib.pose_database import load_database, load_knn, process_pose_vector, \
-                              get_neighbors_idxs
-import lib.pose_parsing as pose_parsing
-from lib.utils import create_directory, for_all_methods, load_experiment_parameters, \
-                      load_character_narrative_maps, timestamp
-from lib.visualizations import draw_skeleton
-import CONSTANTS
+from lib.pose_database import load_knn, process_pose_vector, get_neighbors_idxs
+from lib.utils import for_all_methods, load_character_narrative_maps, timestamp
 
 
 @for_all_methods(log_function)
@@ -43,10 +37,7 @@ class RetrievalExp:
     """
 
     def __init__(self, exp_directory, params):
-        """
-        Initializer of the experiment object
-        """
-
+        """ Initializer of the experiment object """
         self.exp_directory = exp_directory
         self.params = params
 
@@ -55,14 +46,10 @@ class RetrievalExp:
         self.char_to_narr, self.narr_to_char = {}, {}
 
         self._load_resources()
-
         return
 
-
     def _load_resources(self):
-        """
-        Loading preprocessed data and kNN for retrieval purposes
-        """
+        """ Loading preprocessed data and kNN for retrieval purposes """
 
         # loading database and retrieval resources
         knn, database, features = load_knn(database_file=self.params.database_file)
@@ -75,9 +62,7 @@ class RetrievalExp:
             self.params.num_retrievals = self.n_entries
 
         self.char_to_narr, self.narr_to_char = load_character_narrative_maps()
-
         return
-
 
     def retrieval_experiment(self):
         """
@@ -95,42 +80,36 @@ class RetrievalExp:
         for key_idx, key in enumerate(tqdm(self.key_list)):
             # fetching and preprocessing query data
             query = self.database[key]
-            query_img = query["img"]
             query_joints = query["joints"].numpy()
             label_character = query["character_name"]
             label_narrative = self.char_to_narr[label_character]
             pose_vector = preprocess_pose(query_joints)
 
             # retrieving and raking using a similarity/metric approach
-            idx, dists = get_neighbors_idxs(pose_vector, k=self.params.num_retrievals,
-                                            num_retrievals=self.params.num_retrievals,
-                                            approach=self.params.approach, knn=self.knn,
-                                            retrieval_method=self.params.retrieval_method,
-                                            penalization=self.params.penalization,
-                                            database=self.features)
+            idx, dists = get_neighbors_idxs(
+                    pose_vector, k=self.params.num_retrievals,
+                    num_retrievals=self.params.num_retrievals,
+                    approach=self.params.approach, knn=self.knn,
+                    retrieval_method=self.params.retrieval_method,
+                    penalization=self.params.penalization,
+                    database=self.features
+                )
             retrievals = [self.database[self.key_list[j]] for j in idx]
 
             # extracting information/labels from retrievals
             retrieved_characters = [r["character_name"] for r in retrievals]
             retrieved_narratives = [self.char_to_narr[c] for c in retrieved_characters]
 
-            character_metrics = score_retrievals(label=label_character,
-                                                 retrievals=retrieved_characters)
-            narrative_metrics = score_retrievals(label=label_narrative,
-                                                 retrievals=retrieved_narratives)
+            character_metrics = score_retrievals(label=label_character, retrievals=retrieved_characters)
+            narrative_metrics = score_retrievals(label=label_narrative, retrievals=retrieved_narratives)
             character_results.append(character_metrics)
             narrative_results.append(narrative_metrics)
-
-            # if(key_idx > self.params.num_exps):
-                # break
 
         end = time()
         self.elapsed_time = end - start
         self.character_results = character_results
         self.narrative_results = narrative_results
-
         return
-
 
     def process_retrieval_results(self, type="character", save=True):
         """
@@ -206,7 +185,7 @@ if __name__ == "__main__":
     args = process_retrieval_arguments()
 
     logger = Logger(args.exp_directory)
-    message = f"Initializing retrieval experiment..."
+    message = "Initializing retrieval experiment..."
     logger.log_info(message=message, message_type="new_exp")
     logger.log_params(params=vars(args))
 

@@ -1,7 +1,7 @@
 """
 Fitting a k-nearest neighbor tree for pose similarity and retrieval purposes
 
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import os
@@ -15,19 +15,17 @@ from CONFIG import CONFIG
 
 
 def process_arguments():
-    """
-    Processing command line arguments
-    """
+    """ Processing command line arguments """
 
     # defining command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--database_file", help="Name of the file contaning the "\
                         "preprocessed databaser", required=True)
-    parser.add_argument("--metric", help="Metric used for retrieval: ['euclidean_distance',"\
+    parser.add_argument("--metric", help="Metric used for retrieval: ['euclidean_distance',"
                         " 'cosine_similarity'].", default="euclidean_distance")
-    parser.add_argument("--approach", help="Approach used to consider similarity.\n"\
-                        "    'upper_body': only considering upper-body keypoints.\n"\
-                        "    'full_body': considering lower and upper body (not head).\n"\
+    parser.add_argument("--approach", help="Approach used to consider similarity.\n"
+                        "    'upper_body': only considering upper-body keypoints.\n"
+                        "    'full_body': considering lower and upper body (not head).\n"
                         "    'all_kpts': considering all keypoints.", default="full_body")
     parser.add_argument("--normalize", help="If True, pose vectors are L-2 normalized.",
                         default="True")
@@ -60,7 +58,6 @@ def load_data(database_file):
     data: dictionary
         dictionary containing data and metadata from all desired datasets
     """
-
     all_dicts = []
     data = {}
 
@@ -71,13 +68,13 @@ def load_data(database_file):
         cur_data = database["data"]
     else:
         cur_data = database
-    all_dicts.append(cur_data) # merging dictionaries
+    all_dicts.append(cur_data)
 
     # merging all dictionaries
     offset = 0
     for cur_dict in all_dicts:
         n_imgs = len(cur_dict.keys())
-        cur_data = {f"img_{i+offset}":cur_dict[f"img_{i}"] for i in range(n_imgs)}
+        cur_data = {f"img_{i+offset}": cur_dict[f"img_{i}"] for i in range(n_imgs)}
         data = {**data, **cur_data}
         offset = offset + n_imgs
 
@@ -129,18 +126,17 @@ def process_data(data, approach, normalize):
     # substracting nose keypoint to enforce translation invariance
     ids_x = np.where(np.arange(dim) % 2 == 0)[0]
     ids_y = np.where(np.arange(dim) % 2 != 0)[0]
-    noses_x, noses_y = processed_features[:,:1], processed_features[:,1:2]
+    noses_x, noses_y = processed_features[:, :1], processed_features[:, 1:2]
     noses_x = np.repeat(noses_x, dim//2, axis=1)
     noses_y = np.repeat(noses_y, dim//2, axis=1)
     zero_idx = (processed_features == 0)
-    processed_features[:,ids_x] = processed_features[:,ids_x] - noses_x
-    processed_features[:,ids_y] = processed_features[:,ids_y] - noses_y
+    processed_features[:, ids_x] = processed_features[:, ids_x] - noses_x
+    processed_features[:, ids_y] = processed_features[:, ids_y] - noses_y
     processed_features[zero_idx] = 0
-
 
     if(normalize):
         epsilon = 1e-5
-        norms = np.linalg.norm(processed_features, axis=1)[:,np.newaxis]
+        norms = np.linalg.norm(processed_features, axis=1)[:, np.newaxis]
         norms[np.where(norms < epsilon)[0]] = epsilon  # for removing empty poses (norm = 0)
         processed_features = processed_features / norms
         norm = " normalized"
@@ -152,9 +148,7 @@ def process_data(data, approach, normalize):
 
 
 def _create_graph(features, metric):
-    """
-    Creating a HNSW graph for knn retrieval
-    """
+    """ Creating a HNSW graph for knn retrieval """
     num_elements, embedding_dim = features.shape
     if(metric == "euclidean_distance"):
         space = "l2"
@@ -191,7 +185,7 @@ def fit_knn_structure(processed_features, data, params):
         approach = f"approach_{params.approach}_"
     else:
         approach = ""
-    cur_name = f"{os.path.basename(params.database_file)[:-4]}_"\
+    cur_name = f"{os.path.basename(params.database_file)[:-4]}_" \
                f"metric_{params.metric}_norm_{approach}{params.normalize}.pkl"
 
     # setting up the knn hnsw graph
@@ -218,8 +212,7 @@ if __name__ == "__main__":
     os.system("clear")
     args = process_arguments()
     data = load_data(database_file=args.database_file)
-    processed_features = process_data(data=data, approach=args.approach,
-                                      normalize=args.normalize)
+    processed_features = process_data(data=data, approach=args.approach, normalize=args.normalize)
     fit_knn_structure(processed_features=processed_features, data=data, params=args)
 
 #

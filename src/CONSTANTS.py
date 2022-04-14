@@ -84,12 +84,11 @@ def setup_skeleton_map(model_name):
     return skeleton
 
 
-# TODO: is this ever called?
 def setup_submission_maps(model_name):
     """
     Selecting the maps to reorder the keypoints for the submission format
     """
-    if model_name not in BODY_PARTS_PAF_IDS:
+    if model_name not in ACCEPTED_MODELS:
         raise NotImplementedError(f"Selected model {model_name} not available. Use {ACCEPTED_MODELS}")
 
     # TODO: What is this

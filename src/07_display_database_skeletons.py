@@ -1,7 +1,7 @@
 """
 Displaying some of the skeleton instances saved in the retrieval database
 
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import os
@@ -11,31 +11,27 @@ from tqdm import tqdm
 import numpy as np
 
 from lib.arguments import process_experiment_directory_argument
-from lib.logger import Logger, log_function, print_
+from lib.logger import Logger, log_function
 from lib.pose_database import load_database
 import lib.pose_parsing as pose_parsing
-from lib.utils import create_directory, for_all_methods, load_experiment_parameters
-from lib.visualizations import draw_pose, draw_skeleton
+from lib.utils import create_directory, load_experiment_parameters
+from lib.visualizations import draw_pose
 import CONSTANTS
 
 
 def process_arguments():
-    """
-    Processing command line arguments
-    """
-
+    """ Processing command line arguments """
     # defining command line arguments
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-d", "--exp_directory", help="Path to the root of the " +\
+    parser.add_argument("-d", "--exp_directory", help="Path to the root of the "
                         "experiment folder", required=True, default="test_dir")
     parser.add_argument("--num_skeletons", help="Number of skeletons to display",
                         type=int, default=16)
-    parser.add_argument("--database_split", help="Dataset split to process ['train', "\
+    parser.add_argument("--database_split", help="Dataset split to process ['train', "
                         "'eval', 'all']", default="eval")
-    parser.add_argument("--shuffle", help="Boolean. If activated, skeletons are "\
+    parser.add_argument("--shuffle", help="Boolean. If activated, skeletons are "
                         "sampled at random", default="False")
-
     args = parser.parse_args()
 
     # making sure the experiment directory exists
@@ -66,7 +62,6 @@ def main(exp_directory, db_split="eval", num_skeletons=16, shuffle=True):
     shuffle: boolean
         If true, skeletons from the database are sampled at random
     """
-
     # macros
     pose_coco = CONSTANTS.SKELETON_HRNET
     pose_arch = CONSTANTS.SKELETON_SIMPLE
@@ -82,7 +77,7 @@ def main(exp_directory, db_split="eval", num_skeletons=16, shuffle=True):
     database = load_database(db_name=dataset_name, db_split=db_split)
     for i, key in enumerate(database):
         print(database[key])
-        if(i==5):
+        if(i == 5):
             break
     n_entries = len(database.keys())
 
@@ -93,10 +88,10 @@ def main(exp_directory, db_split="eval", num_skeletons=16, shuffle=True):
         indices = np.arange(num_skeletons)
 
     all_keys = list(database.keys())
-    empty_img = np.zeros((256,192,3))
-    for i,idx in enumerate(tqdm(indices)):
+    empty_img = np.zeros((256, 192, 3))
+    for i, idx in enumerate(tqdm(indices)):
         kpts = database[all_keys[idx]]["joints"].numpy()
-        kpts[:,-1] = 1  # adding visibility
+        kpts[:, -1] = 1  # adding visibility
         kpts = [kpts[:, 1], kpts[:, 0], kpts[:, 2]]
         kpts = np.array(kpts).T
         savepath = os.path.join(skeletons_path, f"skeleton_{i+1}.png")
@@ -113,7 +108,7 @@ if __name__ == "__main__":
 
     # initializing logger
     logger = Logger(exp_directory)
-    message = f"Initializing visualization of pose skeletons from database"
+    message = "Initializing visualization of pose skeletons from database"
     logger.log_info(message=message, message_type="new_exp")
     logger.log_info(message="Parameters:")
     logger.log_info(message="-----------")
@@ -123,7 +118,7 @@ if __name__ == "__main__":
     logger.log_info(message=f"    - shuffle: {shuffle}")
 
     main(exp_directory, db_split, num_skeletons, shuffle)
-    message = f"Pose skeletons displayed and saved successfully"
+    message = "Pose skeletons displayed and saved successfully"
     logger.log_info(message=message)
 
 #

@@ -1,13 +1,12 @@
 """
 Qualitatively testing pose-based image retrieval.
-Samples a few poses and retrievas the most similar ones, saving results in a directory
+Samples a few poses from the datasets and retrieves the most similar ones, saving results in a directory
 
-@
+@author: Angel Villar-Corrales
 """
 
-import os, shutil
-import argparse
-import pickle
+import os
+import shutil
 from tqdm import tqdm
 
 import cv2
@@ -15,24 +14,20 @@ import numpy as np
 
 from lib.arguments import process_retrieval_arguments
 from lib.logger import Logger, log_function, print_
-from lib.pose_database import load_database, load_knn, process_pose_vector, \
-                              get_neighbors_idxs
+from lib.pose_database import load_knn, process_pose_vector, get_neighbors_idxs
 import lib.pose_parsing as pose_parsing
 import lib.transforms as custom_transforms
-from lib.utils import create_directory, for_all_methods, load_experiment_parameters,\
-                      load_character_narrative_maps
+from lib.utils import create_directory, load_character_narrative_maps
 from lib.visualizations import visualize_image, draw_pose
 import CONSTANTS
 from CONFIG import CONFIG
 
 
 @log_function
-def retrieval_experiment(exp_directory, database_file, approach="all_kpts",
-                         normalize=True, num_retrievals=10, num_exps=5,
-                         retrieval_method="knn", penalization="none", shuffle=False,
-                         **kwargs):
+def retrieval_experiment(exp_directory, database_file, approach="all_kpts", normalize=True, num_retrievals=10,
+                         num_exps=5, retrieval_method="knn", penalization="none", shuffle=False, **kwargs):
     """
-    Main orquestrator for a retrieval experiment. Some random
+    Main orquestrator for a retrieval experiment.
 
     Args:
     -----
@@ -55,25 +50,23 @@ def retrieval_experiment(exp_directory, database_file, approach="all_kpts",
     shuffle: boolean
         If true, query skeletons are sampled at random from the database
     """
-
     # relevant paths and macros
-    pose_coco = CONSTANTS.SKELETON_HRNET
+    # pose_coco = CONSTANTS.SKELETON_HRNET
     pose_arch = CONSTANTS.SKELETON_SIMPLE
     pose_parsing.SKELETON = pose_arch
     plots_path = os.path.join(exp_directory, "plots",
                               f"retrieval_exps_{retrieval_method}_{approach}_{penalization}")
     if(os.path.exists(plots_path)):
-        print(f"Retrieval Image-examples already exist.\n"\
-              "This process will overwrite previous results.")
+        print_("Retrieval Image-examples already exist.\n" "This process will overwrite previous results.")
         txt = input("Do you want to proceed? (y/n)\n")
         if(txt != "y" and txt != "Y"):
             return
+        print_(f"Removing experiment directory {plots_path}...")
         shutil.rmtree(plots_path)
     create_directory(plots_path)
 
-    data_path = os.path.join(CONFIG["paths"]["data_path"], "class_arch_poses", "characters")
-
     # loading database and retrieval resources
+    data_path = os.path.join(CONFIG["paths"]["data_path"], "class_arch_poses", "characters")
     knn, database, features = load_knn(database_file=database_file)
     keys_list = list(database.keys())
     n_entries = len(keys_list)
@@ -94,14 +87,18 @@ def retrieval_experiment(exp_directory, database_file, approach="all_kpts",
         query_joints = query["joints"].numpy()
         cur_character = query["character_name"]
         cur_narrative = char_to_narr[cur_character]
-        pose_vector = process_pose_vector(vector=query_joints, approach=approach,
-                                          normalize=normalize)#[np.newaxis,:]
+        pose_vector = process_pose_vector(vector=query_joints, approach=approach, normalize=normalize)
 
         # obtaining similar poses using knn
-        idx, dists = get_neighbors_idxs(pose_vector, k=num_retrievals, approach=approach,
-                                        retrieval_method=retrieval_method,
-                                        penalization=penalization, knn=knn,
-                                        database=features)
+        idx, dists = get_neighbors_idxs(
+                pose_vector,
+                k=num_retrievals,
+                approach=approach,
+                retrieval_method=retrieval_method,
+                penalization=penalization,
+                knn=knn,
+                database=features
+            )
         retrievals = [database[keys_list[j]] for j in idx]
 
         # saving query and results
@@ -114,13 +111,17 @@ def retrieval_experiment(exp_directory, database_file, approach="all_kpts",
             query["joints"], query["center"][0].numpy(), query["scale"][0].numpy(), [192, 256]
         )
         pose[:, -1] = query["joints"][:, -1]
-        pose = np.array([pose[:,1], pose[:,0], pose[:,2]]).T
+        pose = np.array([pose[:, 1], pose[:, 0], pose[:, 2]]).T
         visualize_image(img=data_numpy, savepath=savepath1, axis_off=True)
-        draw_pose(img=data_numpy, poses=[np.arange(19)], all_keypoints=pose,
-                  savepath=savepath2, axis_off=True)
-        # draw_skeleton(kpts=query_joints, savepath=savepath2, title=title)
+        draw_pose(
+                img=data_numpy,
+                poses=[np.arange(19)],
+                all_keypoints=pose,
+                savepath=savepath2,
+                axis_off=True
+            )
 
-        for j,ret in enumerate(retrievals):
+        for j, ret in enumerate(retrievals):
             # data and metadata
             cur_character = ret["character_name"]
             cur_narrative = char_to_narr[cur_character]
@@ -136,11 +137,15 @@ def retrieval_experiment(exp_directory, database_file, approach="all_kpts",
                 ret["joints"], ret["center"][0].numpy(), ret["scale"][0].numpy(), [192, 256]
             )
             pose[:, -1] = ret["joints"][:, -1]
-            pose = np.array([pose[:,1], pose[:,0], pose[:,2]]).T
+            pose = np.array([pose[:, 1], pose[:, 0], pose[:, 2]]).T
             visualize_image(img=data_numpy, savepath=savepath1, axis_off=True)
-            draw_pose(img=data_numpy, poses=[np.arange(19)], all_keypoints=pose,
-                      savepath=savepath2, axis_off=True)
-            # draw_skeleton(kpts=ret["joints"].numpy(), savepath=savepath, title=title)
+            draw_pose(
+                    img=data_numpy,
+                    poses=[np.arange(19)],
+                    all_keypoints=pose,
+                    savepath=savepath2,
+                    axis_off=True
+                )
     return
 
 
