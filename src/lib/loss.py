@@ -2,36 +2,27 @@
 """
 Methods for computing loss functions
 
-EnhancePoseEstimation/src/lib
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 import os
 import sys
 import json
-import numpy as np
-import os, sys
-import json
-import cv2
 import torch
 import torchvision
 import torch.nn as nn
-import torch.nn.functional as F
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-
-import data.data_processing as data_processing
-import data.custom_transforms as custom_transforms
-import lib.utils as utils
-import lib.bounding_box as bbox
-import lib.pose_parsing as pose_parsing
-from lib.logger import Logger, log_function, print_
+from lib.logger import print_, log_function
 from CONFIG import CONFIG
 
-import torch
-import torchvision
 
 class VGGPerceptualLoss(torch.nn.Module):
+    """
+    Perceptual loss from:
+     Zhang et al. "The unreasonable effectiveness of deep features as a perceptual metric." CVPR 2018.
+    Basically we measure the L1 loss between intermediate VGG features
+    """
+
     def __init__(self, resize=True):
+        """ Module initializer """
         super(VGGPerceptualLoss, self).__init__()
         blocks = []
         blocks.append(torchvision.models.vgg16(pretrained=True).features[:4].eval())
@@ -43,11 +34,12 @@ class VGGPerceptualLoss(torch.nn.Module):
                 p.requires_grad = False
         self.blocks = torch.nn.ModuleList(blocks)
         self.transform = torch.nn.functional.interpolate
-        self.mean = torch.nn.Parameter(torch.tensor([0.485, 0.456, 0.406]).view(1,3,1,1))
-        self.std = torch.nn.Parameter(torch.tensor([0.229, 0.224, 0.225]).view(1,3,1,1))
+        self.mean = torch.nn.Parameter(torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.std = torch.nn.Parameter(torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
         self.resize = resize
 
     def forward(self, input, target):
+        """ Forward passes and loss computation """
         if input.shape[1] != 3:
             input = input.repeat(1, 3, 1, 1)
             target = target.repeat(1, 3, 1, 1)
@@ -65,28 +57,19 @@ class VGGPerceptualLoss(torch.nn.Module):
             loss += torch.nn.functional.l1_loss(x, y)
         return loss
 
+
 class PersonMSELoss(nn.Module):
-    """
-    Loss function used for training Top-down approaches (loss after human detector)
-    """
+    """ Loss function used for training Top-down approaches (loss after human detector) """
 
     def __init__(self, use_target_weight=1):
-        """
-        Initializer of the loss module
-        """
-
+        """ Initializer of the loss module """
         super(PersonMSELoss, self).__init__()
         self.criterion = nn.MSELoss(reduction='mean')
         self.use_target_weight = use_target_weight
-
         return
 
-
     def forward(self, output, target, target_weight=1):
-        """
-        Computing the average loss value accross all joints
-        """
-
+        """ Computing the average loss value accross all joints """
         batch_size = output.shape[0]
         num_joints = output.shape[1]
         heatmaps_pred = output.reshape((batch_size, num_joints, -1)).split(1, 1)
@@ -136,7 +119,7 @@ def apply_perceptual_loss(exp_data, params, loss, perceptual_loss):
     use_perceptual_loss = False
     if("perceptual_loss" not in exp_data["training"]):
         exp_data["training"]["perceptual_loss"] = False
-    if(params.use_perceptual_loss == True or exp_data["training"]["perceptual_loss"] == True):
+    if(params.use_perceptual_loss or exp_data["training"]["perceptual_loss"]):
         use_perceptual_loss = True
     dataset_name = exp_data["dataset"]["dataset_name"]
 
@@ -147,7 +130,7 @@ def apply_perceptual_loss(exp_data, params, loss, perceptual_loss):
     mean_perc_loss = torch.mean(perceptual_loss).float()
 
     # case for Lambda weighting in the perceptual loss function
-    if(exp_data["training"]["lambda_D"] != None and exp_data["training"]["lambda_P"] != None):
+    if(exp_data["training"]["lambda_D"] is not None and exp_data["training"]["lambda_P"] is not None):
         lambda_D = torch.tensor(exp_data["training"]["lambda_D"])
         lambda_P = torch.tensor(exp_data["training"]["lambda_P"])
         total_loss = loss*lambda_D + mean_perc_loss*lambda_P
@@ -185,13 +168,11 @@ def load_perceptual_loss_dict(exp_data, params):
         dict mapping Styled-COCO image name with its corresponding precomputed
         perceptual loss value
     """
-
-
     # processing whether perceptual loss is considered during training
     use_perceptual_loss = False
     if("perceptual_loss" not in exp_data["training"]):
         exp_data["training"]["perceptual_loss"] = False
-    if(params.use_perceptual_loss == True or exp_data["training"]["perceptual_loss"] == True):
+    if(params.use_perceptual_loss or exp_data["training"]["perceptual_loss"]):
         use_perceptual_loss = True
 
     # loading dictionary with precomputed perceptual oss values if corresponding
@@ -205,9 +186,11 @@ def load_perceptual_loss_dict(exp_data, params):
                                  f"perceptual_loss_dict_alpha_{alpha}_styles_{style}.json")
         print_(dict_path)
         if not os.path.exists(dict_path):
-            print_("You want to train model with perceptual loss, however the offline losses "\
-            f"file '{dict_path}' does not exist.\n"\
-            "Please run 'aux_create_offline_perceptual_loss.py' file...")
+            print_(
+                    "You want to train model with perceptual loss, however the offline losses "
+                    f"file '{dict_path}' does not exist.\n"
+                    "Please run 'aux_create_offline_perceptual_loss.py' file..."
+                )
             sys.exit()
         else:
             perceptual_loss_dict = json.loads(open(dict_path).read())

@@ -6,26 +6,21 @@ EnhancePoseEstimation/src
 """
 
 import os
-import time
 from tqdm import tqdm
-
 import numpy as np
 import torch
 from torch.nn import DataParallel
 
 import data
-import data.data_processing as data_processing
 import lib.arguments as arguments
 import lib.model_setup as model_setup
 import lib.inference as inference
 import lib.metrics as metrics
-import lib.pose_parsing as pose_parsing
 import lib.utils as utils
 from lib.logger import Logger, log_function, print_
 from lib.utils import for_all_methods
 from lib.loss import apply_perceptual_loss, load_perceptual_loss_dict, PersonMSELoss
 from models.utils.hrnet_config import update_config
-from CONFIG import CONFIG
 
 
 @for_all_methods(log_function)
@@ -43,10 +38,7 @@ class Trainer:
     """
 
     def __init__(self, exp_path, checkpoint=None, dataset_name=None, params=None):
-        """
-        Initializer of the trainer object
-        """
-
+        """ Initializer of the trainer object """
         # relevant paths
         self.exp_path = exp_path
         self.params = params
@@ -61,15 +53,14 @@ class Trainer:
             self.checkpoint_path = os.path.join(self.models_path, self.checkpoint)
 
         self.exp_data = utils.load_experiment_parameters(exp_path)
-        cfg = update_config()
+        _ = update_config()
 
         # train/eval parameters
         self.train_loss = 1e18
         self.valid_loss = 1e18
         self.save_frequency = self.exp_data["training"]["save_frequency"]
         self.num_epochs = self.exp_data["training"]["num_epochs"]
-        self.scheduler_type = self.exp_data["training"]["scheduler"] \
-                              if "scheduler" in self.exp_data["training"] else "plateau"
+        self.scheduler_type = self.exp_data["training"].get("scheduler", "plateau")
         self.iterations = 0
         self.cur_epoch = 0
 

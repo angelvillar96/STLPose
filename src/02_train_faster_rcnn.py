@@ -6,28 +6,20 @@ it does not generalize well to our styled data. We use this file for fine-tuning
 @author: Angel Villar-Corrales
 """
 
-import os, pdb
-import json
+import os
 import math
-import time
 from tqdm import tqdm
-
 import numpy as np
 import torch
 from torch.nn import DataParallel
 
 from data.data_loaders import get_detection_dataset
-import data.data_processing as data_processing
 import lib.arguments as arguments
 import lib.model_setup as model_setup
-import lib.inference as inference
-import lib.metrics as metrics
 import lib.loss as libloss
 import lib.utils as utils
 from lib.logger import Logger, log_function, print_
 from lib.utils import for_all_methods, load_experiment_parameters
-from CONFIG import CONFIG
-
 from lib.detection_coco_utils import get_coco_api_from_dataset
 from lib.detection_coco_eval import CocoEvaluator
 
@@ -46,10 +38,7 @@ class DetectorTrain:
     """
 
     def __init__(self, exp_path, checkpoint=None, dataset_name=None, params=None):
-        """
-        Initializer of the training object
-        """
-
+        """ Initializer of the training object """
         self.exp_path = exp_path
         self.params = params
         self.models_path = os.path.join(self.exp_path, "models", "detector")
@@ -71,9 +60,7 @@ class DetectorTrain:
         self.display_frequency = 300
         self.class_ids = [1]
         self.num_classes = len(self.class_ids)
-
         return
-
 
     def load_detection_dataset(self):
         """
@@ -90,49 +77,36 @@ class DetectorTrain:
             print_(f"'Styles' parameter changing to {self.params.styles}")
             self.exp_data["dataset"]["styles"] = self.params.styles
 
-        self.perceptual_loss_dict = libloss.load_perceptual_loss_dict(exp_data=self.exp_data,
-                                                                   params=self.params)
-
-        train_loader,\
-        valid_loader  = get_detection_dataset(exp_data=self.exp_data, train=True,
-                                              validation=True, shuffle_train=True,
-                                              shuffle_valid=False, class_ids=self.class_ids,
-                                              perceptual_loss_dict=self.perceptual_loss_dict)
+        self.perceptual_loss_dict = libloss.load_perceptual_loss_dict(
+                exp_data=self.exp_data,
+                params=self.params
+            )
+        train_loader, valid_loader = get_detection_dataset(
+                exp_data=self.exp_data,
+                train=True,
+                validation=True,
+                shuffle_train=True,
+                shuffle_valid=False,
+                class_ids=self.class_ids,
+                perceptual_loss_dict=self.perceptual_loss_dict
+            )
 
         self.train_loader, self.valid_loader = train_loader, valid_loader
-
         self.coco = get_coco_api_from_dataset(self.valid_loader.dataset)
         self.iou_types = ["bbox"]
-
         return
 
-
     def load_detector_model(self):
-        """
-        Loading the pretrained person detector model
-        """
-
-        # setting up the device
+        """ Loading the pretrained person detector model """
+        # setting up the model and device
         torch.backends.cudnn.fastest = True
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        model = model_setup.setup_detector(pretrained=self.pretrained,
-                                           num_classes=self.num_classes)
+        model = model_setup.setup_detector(pretrained=self.pretrained, num_classes=self.num_classes)
         model.eval()
         self.model = DataParallel(model).to(self.device)
 
         # fitting optimizer and scheduler given exp_data parameters
-        optimizer, scheduler = model_setup.setup_optimizer(exp_data=self.exp_data,
-                                                           net=self.model)
-
-        lr_factor = self.exp_data["training"]["learning_rate_factor"]
-        patience = self.exp_data["training"]["patience"]
-        # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=lr_factor,
-        #                                             step_size=patience, verbose=True)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=patience,
-                                                               factor=lr_factor, min_lr=1e-8,
-                                                               mode="max", verbose=True)
-
+        optimizer, scheduler = model_setup.setup_optimizer(exp_data=self.exp_data, net=self.model)
         self.optimizer, self.scheduler = optimizer, scheduler
 
         # loading pretraining checkpoint if specified
@@ -140,28 +114,29 @@ class DetectorTrain:
             print_(f"Loading checkpoint {self.checkpoint}")
             # for resuming a training on the same dataset
             if(self.params.resume_training):
-                self.model, self.optimizer, self.scheduler, \
-                    self.cur_epoch = model_setup.load_checkpoint(self.checkpoint_path,
-                                                                 model=self.model,
-                                                                 only_model=False,
-                                                                 optimizer=self.optimizer,
-                                                                 scheduler=self.scheduler)
+                self.model, self.optimizer, self.scheduler, self.cur_epoch = model_setup.load_checkpoint(
+                        self.checkpoint_path,
+                        model=self.model,
+                        only_model=False,
+                        optimizer=self.optimizer,
+                        scheduler=self.scheduler
+                    )
                 print_(f"Resuming training from epoch {self.cur_epoch}/{self.num_epochs}.")
             # for fine-tuning on a new dataset
             else:
-                self.model = model_setup.load_checkpoint(self.checkpoint_path,
-                                                         model=self.model,
-                                                         only_model=True,
-                                                         drop_head=True)
+                self.model = model_setup.load_checkpoint(
+                        self.checkpoint_path,
+                        model=self.model,
+                        only_model=True,
+                        drop_head=True
+                    )
         return
-
 
     def training_loop(self):
         """
         Iteratively executing training and validation epochs while saving loss value
         in training logs file
         """
-
         self.model = self.model.to(self.device)
         if(self.params.resume_training):
             self.training_logs = utils.load_detector_logs(self.exp_path)
@@ -184,31 +159,39 @@ class DetectorTrain:
                                        valid_ap=self.valid_ap)
 
             if(epoch % self.save_frequency == 0):
-                print_(f"Saving model checkpoint")
-                model_setup.save_checkpoint(model=self.model, optimizer=self.optimizer,
-                                            scheduler=self.scheduler, epoch=epoch,
-                                            exp_path=self.exp_path, detector=True)
+                print_("Saving model checkpoint")
+                model_setup.save_checkpoint(
+                        model=self.model,
+                        optimizer=self.optimizer,
+                        scheduler=self.scheduler,
+                        epoch=epoch,
+                        exp_path=self.exp_path,
+                        detector=True
+                    )
 
-        print_(f"Finished training procedure")
-        print_(f"Saving final checkpoint")
-        model_setup.save_checkpoint(model=self.model, optimizer=self.optimizer,
-                                    scheduler=self.scheduler, epoch=self.num_epochs,
-                                    exp_path=self.exp_path, finished=True, detector=True)
-
+        print_("Finished training procedure")
+        print_("Saving final checkpoint")
+        model_setup.save_checkpoint(
+                model=self.model,
+                optimizer=self.optimizer,
+                scheduler=self.scheduler,
+                epoch=self.num_epochs,
+                exp_path=self.exp_path,
+                finished=True,
+                detector=True
+            )
         return
-
 
     def train_epoch(self):
         """
         Computing a training epoch: forward and backward pass for the complete training set
         """
-
         train_loss = []
         for i, (imgs, metas_) in enumerate(tqdm(self.train_loader)):
 
             imgs = torch.stack(imgs)
             metas = [{k: v for k, v in t.items()} for t in metas_]
-            if self.exp_data['training']['perceptual_loss'] == True:
+            if self.exp_data['training']['perceptual_loss']:
                 perceptual_losses = torch.Tensor([m["perceptual_loss"] for m in metas])
 
             # preparing annotations for forward pass
@@ -222,16 +205,17 @@ class DetectorTrain:
 
             # forward pass and loss computation
             loss_dict = self.model(imgs / 255, targets)  # important to divide by 255
-
             loss = sum(loss for loss in loss_dict.values())
-            loss = apply_perceptual_loss(exp_data=self.exp_data, params=self.params,
-                                         loss=loss, perceptual_loss=perceptual_losses)
-
+            loss = libloss.apply_perceptual_loss(
+                    exp_data=self.exp_data,
+                    params=self.params,
+                    loss=loss,
+                    perceptual_loss=perceptual_losses
+                )
             loss_value = loss.item()
             if loss_value == 0 or not math.isfinite(loss_value):
-                print_(f"Loss is {loss_value}, skipping image")
+                print_(f"Loss is {loss_value}, skipping image/batch")
                 continue
-
             train_loss.append(loss_value)
 
             # printing small update every few mini-batches
@@ -245,9 +229,7 @@ class DetectorTrain:
 
         self.train_loss = np.mean(train_loss)
         print_(f" Train Loss: {self.train_loss}")
-
         return
-
 
     @torch.no_grad()
     def validation_epoch(self):
@@ -291,32 +273,35 @@ class DetectorTrain:
         return
 
 
-
 if __name__ == "__main__":
 
     os.system("clear")
-    exp_path, checkpoint, dataset_name,\
-         params = arguments.get_directory_argument(get_checkpoint=True,
-                                                   get_dataset=True)
+    exp_path, checkpoint, dataset_name, params = arguments.get_directory_argument(
+            get_checkpoint=True,
+            get_dataset=True
+        )
 
     # initializing logger and logging the beggining of the experiment
     logger = Logger(exp_path)
-    message = f"Initializing Faster-RCNN training procedure"
+    message = "Initializing Faster-RCNN training procedure"
     logger.log_info(message=message, message_type="new_exp")
     logger.log_info(message=f"Checkpoint: {checkpoint}", message_type="params")
     logger.log_info(message=f"Dataset: {dataset_name}", message_type="params")
     for param, val in vars(params).items():
         logger.log_info(message=f"{param}: {val}", message_type="params")
 
-    trainer = DetectorTrain(exp_path=exp_path, checkpoint=checkpoint,
-                            dataset_name=dataset_name, params=params)
+    trainer = DetectorTrain(
+            exp_path=exp_path,
+            checkpoint=checkpoint,
+            dataset_name=dataset_name,
+            params=params
+        )
     logger.log_params(params=trainer.exp_data)
-
 
     trainer.load_detection_dataset()
     trainer.load_detector_model()
     trainer.training_loop()
 
-    logger.log_info(message=f"Training of the Faster-RCNN finished successfully")
+    logger.log_info(message="Training of the Faster-RCNN finished successfully")
 
 #

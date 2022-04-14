@@ -33,8 +33,8 @@ def create_experiment():
 
     return
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     os.system("clear")
     create_experiment()
 

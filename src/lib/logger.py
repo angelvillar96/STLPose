@@ -1,7 +1,7 @@
 """
 Utils for creating a Logger that writes info, warnings and so on into a logs file
 
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import os
@@ -10,6 +10,7 @@ import traceback
 from datetime import datetime
 
 LOGGER = None
+
 
 def log_function(func):
     """
@@ -69,7 +70,6 @@ class Logger():
 
         return
 
-
     def log_info(self, message, message_type="info", **kwargs):
         """
         Logging a message into the file
@@ -113,7 +113,6 @@ class Logger():
             pre_string = "\n\n\n"
         form_message = f"{pre_string}{cur_time}    {message_type.upper()}: {message}\n"
         return form_message
-
 
     def _get_datetime(self):
         """

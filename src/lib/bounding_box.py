@@ -1,7 +1,7 @@
 """
 Methods for handling and processing bounding boxes from the FasterRCNN model
 
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import numpy as np
@@ -10,7 +10,6 @@ import torchvision
 import torch.nn.functional as F
 
 
-# TODO: This method needs to be reviewed
 def get_detections(imgs, bboxes, height=256, width=192):
     """
     Extracting all reshaped cropped human predictions from the image given the bounding boxes
@@ -29,24 +28,21 @@ def get_detections(imgs, bboxes, height=256, width=192):
     for i, img_bbs in enumerate(bboxes):
         cur_dets = []
         for j, bb in enumerate(img_bbs):
-            det = reshape_detection(imgs[i,:], bb, height=height, width=width)
+            det = reshape_detection(imgs[i, :], bb, height=height, width=width)
             cur_dets.append(det)
         if(len(cur_dets) == 0):
             continue
         cur_dets = torch.stack(cur_dets).squeeze()
         if(len(cur_dets.shape) == 3):
-             cur_dets = cur_dets.reshape(1, *cur_dets.shape)
+            cur_dets = cur_dets.reshape(1, *cur_dets.shape)
         detections.append(cur_dets)
 
     if(len(detections) > 0):
         detections = torch.cat(detections, axis=0)
-    # if(len(detections.shape) == 3):
-         # detections = detections.reshape(1, *detections.shape)
 
     return detections
 
 
-# TODO: This method needs to be reviewed
 def reshape_detection(img, bb, height=256, width=192, offset=0):
     """
     Reshaping the size of the bounding boxes to the required by HRNet
@@ -61,23 +57,23 @@ def reshape_detection(img, bb, height=256, width=192, offset=0):
     width, height : int
         size of the bounding boxes
     """
-
-
     bb = [int(round(b)) for b in bb]
     bb[0], bb[1] = bb[0] - offset, bb[1] - offset
     bb[2], bb[3] = bb[2] + offset, bb[3] + offset
     box_height = bb[2] - bb[0]
     box_width = bb[3] - bb[1]
-    center = np.array([bb[0] + box_height/2, bb[1] + box_width/2]).astype(int)
+    # center = np.array([bb[0] + box_height / 2, bb[1] + box_width / 2]).astype(int)
 
     cropped_img = img[:, bb[0]:bb[2], bb[1]:bb[3]].reshape(1, 3, box_height, box_width)
-    reshaped_img = F.interpolate(cropped_img.clone().detach(), (height, width), mode="bilinear",
-                                 align_corners=True)
-
+    reshaped_img = F.interpolate(
+            cropped_img.clone().detach(),
+            (height, width),
+            mode="bilinear",
+            align_corners=True
+        )
     return reshaped_img
 
 
-# TODO: This method needs to be reviewed
 def bbox_to_image_keypoints(pred_keypoints, list_bboxes, height=256, width=192, offset=0):
     """
     Shifting the detected keypoints from bounding-box coordinates to image coordinates
@@ -117,16 +113,15 @@ def bbox_to_image_keypoints(pred_keypoints, list_bboxes, height=256, width=192, 
         height_ratio = original_height / height
         width_ratio = original_width / width
 
-        pred_keypoints[i,:,0] = pred_keypoints[i,:,0] * height_ratio + y_0
-        pred_keypoints[i,:,1] = pred_keypoints[i,:,1] * width_ratio + x_0
+        pred_keypoints[i, :, 0] = pred_keypoints[i, :, 0] * height_ratio + y_0
+        pred_keypoints[i, :, 1] = pred_keypoints[i, :, 1] * width_ratio + x_0
         reshaped_keypoints.append(pred_keypoints[i, :])
 
     reshaped_keypoints = np.array(reshaped_keypoints)
     reshaped_keypoints = np.round(reshaped_keypoints).astype(int)
-    reshaped_keypoints[no_kpt_idx[:,0], no_kpt_idx[:,1], no_kpt_idx[:,2]] = -1
+    reshaped_keypoints[no_kpt_idx[:, 0], no_kpt_idx[:, 1], no_kpt_idx[:, 2]] = -1
 
     return reshaped_keypoints
-
 
 
 def bbox_filtering(predictions, filter_=1, thr=0.6):
@@ -170,7 +165,6 @@ def bbox_filtering(predictions, filter_=1, thr=0.6):
         filtered_labels.append(cur_labels)
         filtered_scores.append(cur_scores)
 
-
     return filtered_bbox, filtered_labels, filtered_scores
 
 
@@ -198,9 +192,11 @@ def bbox_nms(boxes, labels, scores, nms_thr=0.5):
         cur_boxes = np.array(boxes[i])
         cur_labels = np.array(labels[i])
         cur_scores = np.array(scores[i])
-        idx = torchvision.ops.nms(boxes = torch.from_numpy(cur_boxes),
-                                  scores = torch.from_numpy(cur_scores),
-                                  iou_threshold = nms_thr)
+        idx = torchvision.ops.nms(
+                boxes=torch.from_numpy(cur_boxes),
+                scores=torch.from_numpy(cur_scores),
+                iou_threshold=nms_thr
+            )
 
         cur_boxes = np.array([cur_boxes[i] for i in idx])
         cur_labels = np.array([cur_labels[i] for i in idx])

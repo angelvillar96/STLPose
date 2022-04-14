@@ -3,13 +3,11 @@ Methods for initializing the model, loading checkpoints, setting up optimizers a
 functions, and other model-related methods
 
 EnhancePoseEstimation/src/lib
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import os
-
 import torch
-import torch.optim as optim
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
@@ -21,7 +19,7 @@ from CONFIG import CONFIG
 
 def load_model(exp_data, checkpoint=None):
     """
-    Creating a new Lightweight OpenPose PE model
+    Instanciating a new Pose Estimation model
 
     Args:
     -----
@@ -31,36 +29,21 @@ def load_model(exp_data, checkpoint=None):
     Returns:
     --------
     model: nn.Module
-        Lightweight OpenPose model
+        Instanciated model
     """
 
     model_name = exp_data["model"]["model_name"]
+    pretrained_path = CONFIG["paths"]["pretrained_path"]
 
-    if(model_name == "OpenPose"):
-        num_refinement_stages = exp_data["training"]["num_refinement_stages"]
-        model = models.OpenPose(num_refinement_stages=num_refinement_stages,
-                                num_channels=128, num_heatmaps=19, num_pafs=38)
-        pretrained_path = os.path.join(CONFIG["paths"]["pretrained_path"], "OpenPose",
-                                       "checkpoint_iter_370000.pth")
-        model.load_pretrained(pretrained_path=pretrained_path)
-
-    elif(model_name == "OpenPoseVGG"):
-        model = models.OpenPoseVGG()
-        pretrained_path = os.path.join(CONFIG["paths"]["pretrained_path"], "OpenPoseVGG",
-                                       "body_pose_model.pth")
-        model.load_pretrained(pretrained_path)
-
-    elif(model_name == "HRNet"):
+    if(model_name == "HRNet"):
         model = models.PoseHighResolutionNet(is_train=False)
-        pretrained_path = os.path.join(CONFIG["paths"]["pretrained_path"], "HRnet",
-                                       "pose_hrnet_w32_256x192.pth")
+        pretrained_path = os.path.join(pretrained_path, "HRnet", "pose_hrnet_w32_256x192.pth")
         if(checkpoint is None):
             print_("Loading COCO pretrained weights...")
             model.load_state_dict(torch.load(pretrained_path))
 
     else:
-        raise NotImplementedError("So far only ['OpenPose', 'OpenPoseVGG', 'HRNet']" +\
-                                  "models have been implemented")
+        raise NotImplementedError("Only ['HRNet'] models are supported")
 
     return model
 
@@ -87,20 +70,25 @@ def setup_detector(model_name="faster_rcnn", model_type="", pretrained=True,
     assert model_type in ["", "d0", "d3"]
 
     if(model_name == "faster_rcnn"):
-        model = fasterrcnn_resnet50_fpn(pretrained=pretrained)
         # transfer learning: keeping feature extractor and replacing classifier head
+        model = fasterrcnn_resnet50_fpn(pretrained=pretrained)
         model = _setup_rcnn_head(model, num_classes=num_classes)
 
     elif(model_name == "efficientdet"):
-        if(model_type is None or model_type=="d0"):
+        if(model_type is None or model_type == "d0"):
             compound_coef = 0
-        elif(model_type=="d3"):
+        elif(model_type == "d3"):
             compound_coef = 3
         anchors_scales = [2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)]
         anchors_ratios = [(1.0, 1.0), (1.4, 0.7), (0.7, 1.4)]
-        model = models.EfficientDet(compound_coef=compound_coef, num_classes=num_classes,
-                                    ratios=anchors_ratios, scales=anchors_scales,
-                                    threshold=0.5, iou_threshold=0.5)
+        model = models.EfficientDet(
+                compound_coef=compound_coef,
+                num_classes=num_classes,
+                ratios=anchors_ratios,
+                scales=anchors_scales,
+                threshold=0.5,
+                iou_threshold=0.5
+            )
 
     else:
         print_(f"Unrecognized person detector name: {model_name}...", message_type="error")
@@ -110,18 +98,13 @@ def setup_detector(model_name="faster_rcnn", model_type="", pretrained=True,
 
 
 def _setup_rcnn_head(model, num_classes=1, device="cpu"):
-    """
-    Initializing a new Faster RCNN regression/classification head from scratch
-    """
-
+    """ Initializing a new Faster RCNN regression/classification head from scratch """
     if(device == "cpu"):
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes + 1)
     else:
         in_features = model.module.roi_heads.box_predictor.cls_score.in_features
         model.module.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes + 1)
-
-
     return model
 
 
@@ -150,7 +133,7 @@ def setup_optimizer(exp_data, net):
     momentum = exp_data["training"]["momentum"]
     optimizer = exp_data["training"]["optimizer"]
     nesterov = exp_data["training"]["nesterov"]
-    scheduler = exp_data["training"]["scheduler"] if "scheduler" in exp_data["training"] else "plateau"
+    scheduler = exp_data["training"].get("scheduler", "plateau")
     if(optimizer == "adam"):
         optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     else:
@@ -158,12 +141,20 @@ def setup_optimizer(exp_data, net):
                                     nesterov=nesterov, weight_decay=0.0005)
 
     if(scheduler == "plateau"):
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=patience,
-                                                               factor=lr_factor, min_lr=1e-8,
-                                                               mode="min", verbose=True)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer,
+                patience=patience,
+                factor=lr_factor,
+                min_lr=1e-8,
+                mode="max",
+                verbose=True
+            )
     elif(scheduler == "step"):
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=lr_factor,
-                                                    step_size=patience)
+        scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer,
+                gamma=lr_factor,
+                step_size=patience
+            )
     else:
         scheduler = None
 
@@ -192,9 +183,8 @@ def save_checkpoint(model, optimizer, scheduler, epoch, exp_path,
         if True, current checkpoint corresponds to the person detector model. Otherwise
         it corresponds to the pose-estimation model
     """
-
     if(finished):
-        checkpoint_name = f"checkpoint_epoch_final.pth"
+        checkpoint_name = "checkpoint_epoch_final.pth"
     else:
         checkpoint_name = f"checkpoint_epoch_{epoch}.pth"
 
@@ -202,7 +192,7 @@ def save_checkpoint(model, optimizer, scheduler, epoch, exp_path,
         savedir = os.path.join(exp_path, "models", "detector")
         if(not os.path.exists(savedir)):
             create_directory(savedir)
-        savepath =  os.path.join(savedir, checkpoint_name)
+        savepath = os.path.join(savedir, checkpoint_name)
     else:
         savedir = os.path.join(exp_path, "models")
         if(not os.path.exists(savedir)):
@@ -244,12 +234,12 @@ def load_checkpoint(checkpoint_path, model, only_model=False, map_cpu=False, **k
     # loading model parameters. Try catch is used to allow different dicts
     try:
         model.load_state_dict(checkpoint['model_state_dict'])
-    except Exception as e:
+    except ValueError:
         model.load_state_dict(checkpoint)
 
     # dropping last layers for Faster RCNN (transfer learning)
-    if("drop_head" in kwargs and kwargs["drop_head"] == True):
-        print_(f"Re-Initializing Faster R-CNN Head...")
+    if("drop_head" in kwargs and kwargs["drop_head"]):
+        print_("Re-Initializing Faster R-CNN Head...")
         model = _setup_rcnn_head(model, num_classes=1, device="gpu")
 
     # returning only the model for transfer learning or returning also optimizer state

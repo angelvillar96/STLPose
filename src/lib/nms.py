@@ -9,11 +9,20 @@ import numpy as np
 
 def oks_nms(kpts_db, thresh, sigmas=None, in_vis_thre=None):
     """
-    greedily select boxes with high confidence and overlap with current maximum <= thresh
+    Greedily select boxes with high confidence and overlap with current maximum <= thresh
     rule out overlap >= thresh, overlap = oks
-    :param kpts_db
-    :param thresh: retain overlap < thresh
-    :return: indexes to keep
+
+    Args:
+    -----
+    kpts_db: list
+        list with the predictice keyponts, confidence scores, and bbox areas
+    thresh:
+        Threshold for removing boxes with higher overlap than this
+
+    Returns:
+    --------
+    kepp: list
+        indexes of kpts_db to keep
     """
     if len(kpts_db) == 0:
         return []
@@ -37,10 +46,15 @@ def oks_nms(kpts_db, thresh, sigmas=None, in_vis_thre=None):
     return keep
 
 
-
 def oks_iou(g, d, a_g, a_d, sigmas=None, in_vis_thre=None):
+    """
+    IoU between person keypoints
+    """
     if not isinstance(sigmas, np.ndarray):
-        sigmas = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89]) / 10.0
+        sigmas = np.array([
+                .26, .25, .25, .35, .35, .79, .79, .72, .72,
+                .62, .62, 1.07, 1.07, .87, .87, .89, .89
+            ]) / 10.0
     vars = (sigmas * 2) ** 2
     xg = g[0::3]
     yg = g[1::3]

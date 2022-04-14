@@ -2,12 +2,10 @@
 Methods for reading and processing command line arguments
 
 EnhancePoseEstimation/src/lib
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
-
 import os
-import ast
 import argparse
 from argparse import Namespace
 from CONFIG import CONFIG
@@ -24,6 +22,7 @@ def process_create_experiment_arguments():
     # general arguments
     parser.add_argument("-d", "--exp_directory", help="Directory where the experiment" +\
                         "folder will be created", required=True, default="test_dir")
+    parser.add_argument("--config", help="Name of the default configuration file to use", default=None)
 
     # dataset parameters
     parser.add_argument('--dataset_name', help="Dataset to take the images from " +\
@@ -50,7 +49,7 @@ def process_create_experiment_arguments():
 
     # model parameters
     parser.add_argument('--model_name', help="Model to use for Human Pose Estimation " +\
-                        "[OpenPose, OpenPoseVGG, HRNet]", default="HRNet")
+                        "[HRNet]", default="HRNet")
     parser.add_argument('--detector_name', help="Name of the person detector model to use "\
                          "prior to the pose estimation. ['faster_rcnn', 'efficientdet']",
                          default="faster_rcnn")
@@ -97,8 +96,8 @@ def process_create_experiment_arguments():
     # enforcing correct values
     assert args.dataset_name in ["coco", "styled_coco", "arch_data", "combined"],\
         "Wrong dataset given. Only ['coco', 'styled_coco', 'arch_data', 'combined'] are allowed"
-    assert args.model_name in ["OpenPose", "OpenPoseVGG", "HRNet"],\
-        "Wrong model name given. Only ['OpenPose', 'OpenPoseVGG', 'HRNet'] are allowed"
+    assert args.model_name in ["HRNet"],\
+        "Wrong model name given. Only ['HRNet'] are allowed"
     assert args.detector_name in ['faster_rcnn', 'efficientdet'], \
         "Wrong detector name given. Only ['faster_rcnn', 'efficientdet'] are allowed"
     assert args.detector_type in ['', 'd0', 'd3'], \
@@ -115,7 +114,8 @@ def process_create_experiment_arguments():
 
 def get_directory_argument(get_checkpoint=False, get_dataset=False, get_perceptual_flag=False):
     """
-    Reading the directory passed as an argument
+    Reading the directory passed as an argument and processing other additional
+    arguments, such as the pretrained checkpoint, or whether to use perceptual loss
     """
 
     # defining command line arguments
@@ -153,13 +153,12 @@ def get_directory_argument(get_checkpoint=False, get_dataset=False, get_perceptu
         "Wrong alpha parameter. Only ['random', '1.0', '0.5'] are accepted"
     assert args.styles in [None, "redblack", "scenes"], \
         "Wrong styles parameter. Only ['redblack', 'scenes'] are accepted"
-    assert args.percentage is None or (args.percentage >=1 and args.percentage <= 100), \
+    assert args.percentage is None or (args.percentage >= 1 and args.percentage <= 100), \
         "ERROR! 'Percentage' parameter must be in range [1, 100]"
 
     params = {
         "save": (args.save == "True") if args.save is not None else False,
-        "resume_training": (args.resume_training == "True")
-            if args.resume_training is not None else False,
+        "resume_training": (args.resume_training == "True") if args.resume_training is not None else False,
         "drop_head": (args.drop_head == "True") if args.drop_head is not None else False,
         "use_perceptual_loss": args.perceptual_loss,
         "alpha": args.alpha,
@@ -176,7 +175,7 @@ def get_directory_argument(get_checkpoint=False, get_dataset=False, get_perceptu
         assert dataset_name in ["", "coco", "styled_coco", "arch_data", "combined"]
         dataset_name = None if dataset_name == "" else dataset_name
 
-    if(get_dataset==True and get_checkpoint==True):
+    if(get_dataset and get_checkpoint):
         return exp_directory, checkpoint, dataset_name, params
     elif(get_dataset):
         return exp_directory, dataset_name, params

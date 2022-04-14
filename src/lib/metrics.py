@@ -3,34 +3,25 @@ Methods for computing predictions and evaluation metrics, incuding OKS Precision
 from the COCO api and accuracy based on distance
 
 EnhancePoseEstimation/src/lib
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
-
-import os
 import json
 from collections import defaultdict
-from collections import OrderedDict
 
 import numpy as np
-import cv2
-import torch
-import torch.nn.functional as F
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
 import data.data_processing as data_processing
-import data.custom_transforms as custom_transforms
 import lib.utils as utils
 import lib.nms as nms_lib
 import lib.bounding_box as bbox
 import lib.pose_parsing as pose_parsing
-from CONFIG import CONFIG
-import CONSTANTS
 
+########################
+# POSE RETRIEVAL METRICS
+########################
 
-#######################################
-####### POSE RETRIEVAL METRICS ########
-#######################################
 
 def score_retrievals(label, retrievals):
     """
@@ -46,8 +37,8 @@ def score_retrievals(label, retrievals):
         number of images with the current label. We need this to compute recalls
     """
 
-    retrievals = retrievals[1:] # we do not account rank-0 since it's self-retrieval
-    relevant_mask = np.array([1 if r==label else 0 for r in retrievals])
+    retrievals = retrievals[1:]  # we do not account rank-0 since it's self-retrieval
+    relevant_mask = np.array([1 if r == label else 0 for r in retrievals])
     num_relevant_retrievals = np.sum(relevant_mask)
 
     if(num_relevant_retrievals == 0):
@@ -100,9 +91,10 @@ def score_retrievals(label, retrievals):
     return metrics
 
 
-#######################################
-####### POSE SIMILARITY METRICS #######
-#######################################
+#########################
+# POSE SIMILARITY METRICS
+#########################
+
 def confidence_score(query, pose_db, confidence):
     """
     Computing the confidence score for pose similarity. This metric weights the distance
@@ -115,9 +107,8 @@ def confidence_score(query, pose_db, confidence):
     confidence: numpy array
         vector with the confidence  with which each query keypoint was detected
     """
-
     # normalizing with the sum of confidences so metric is bounded by 1
-    confidence = confidence / np.sqrt(np.sum(np.power(confidence,2)))
+    confidence = confidence / np.sqrt(np.sum(np.power(confidence, 2)))
     norm = 1 / (np.sum(confidence))
     weighted_scores = np.sqrt(np.sum(confidence * np.power(query - pose_db, 2)))
     confidence_score = norm * weighted_scores
@@ -152,16 +143,16 @@ def oks_score(query, pose_db, approach):
     square_dists = [(query[2*i] - pose_db[2*i])**2 + (query[2*i+1] - pose_db[2*i+1])**2
                     for i in range(len(query) // 2)]
     exponent = square_dists / (np.power(sigmas, 2) * 2)
-    oks = np.sum( np.exp(-1 * exponent) ) / (len(query) // 2)
+    oks = np.sum(np.exp(-1 * exponent)) / (len(query) // 2)
 
     oks = 1 - oks  # unlike distance, the larger oks the better, so we do this :)
 
     return oks
 
 
-#######################################
-######### COCO EVAL METRICS ###########
-#######################################
+###################
+# COCO EVAL METRICS
+###################
 
 def compute_precision(preds_file, labels_file, summarize=False):
     """
@@ -189,7 +180,7 @@ def compute_precision(preds_file, labels_file, summarize=False):
     cocoEval._prepare()
     preds = utils.load_predictions(preds_file)
     image_ids = [pred["image_id"] for pred in preds]
-    cocoEval.params.imgIds  = image_ids
+    cocoEval.params.imgIds = image_ids
 
     cocoEval.evaluate()
     cocoEval.accumulate()
@@ -275,99 +266,9 @@ def generate_submission_hrnet(all_preds, all_bboxes, image_ids, preds_file, name
     return
 
 
-# DEPRECATED
-def compute_predictions(model_name, **kwargs):
-    """
-    Calling the corresponding precision method given the model name
-    """
-
-    if("OpenPose" in model_name):
-        cur_results = compute_predictions_openpose(**kwargs)
-    elif(model_name == "HRNet"):
-        cur_results = compute_predictions_hrnet(**kwargs)
-
-    return cur_results
-
-
-# REVIEWING: PROBABLY DEPRECATED
-def compute_predictions_hrnet(heatmaps, bboxes, metadata, cur_size=400, **kwargs):
-    """
-    Extrancting pose predictions from the detected heatmaps and bounding boxes
-
-    Args:
-    -----
-    heatmaps: numpy array
-        np matrices corresponding to the heatmaps estimated from the bounding boxes
-    bboxes: list
-        list with the bounding box coordinates [[y0, x0, y1, x1], ...]
-    metadata: dictionary
-        metadata corresponding to the sampled image. It includes the image name/path and the
-        original image size to undo the resizing
-    """
-
-    img_names, img_shapes = metadata["image_name"],  np.array(metadata["image_shape"])
-    dets_per_img = [0] + [len(bb) for bb in bboxes]
-
-    # estimating keypoints for each bounding box
-    keypoints, _ = pose_parsing.get_max_preds_hrnet(heatmaps, thr=0.1)
-    reshaped_keypoints = bbox.bbox_to_image_keypoints(np.copy(keypoints), bboxes,
-                                                      height=256, width=192)
-
-    # creating pose objects and grouping poses per image
-    pose_entries, all_keypoints = pose_parsing.create_pose_entries(reshaped_keypoints)
-    pose_entries_per_img = [pose_entries[dets_per_img[i]:dets_per_img[i] + dets_per_img[i+1]]
-                            for i in range(len(dets_per_img[:-1]))]
-
-    # reshaping the points to match coco eval format
-    cur_results = None
-    for i, pose in enumerate(pose_entries_per_img):
-        img_shape, img_name = img_shapes[i], img_names[i]
-        coco_keypoints_, scores = data_processing.convert_to_coco_format(pose, all_keypoints)
-        coco_keypoints = data_processing.resize_inference(coco_keypoints_, original_size=img_shape,
-                                                          cur_size=cur_size)
-        cur_results = data_processing.convert_to_submission_dictionary(coco_keypoints, scores,
-                                                                       img_name, cur_results)
-
-    return cur_results
-
-
-# DEPRECATED
-def compute_predictions_openpose(heatmaps, pafs, metadata, cur_size=400, thr=0.5,
-                                 thr_ratio=0.8, **kwargs):
-    """
-    Extrancting pose predictions from the detected heatmaps and pafs
-
-    Args:
-    -----
-    heatmaps, pafs: numpy array
-        np matrices corresponding to the estimated heatmaps and pafs
-    metadata: dictionary
-        metadata corresponding to the sampled image. It includes the image name/path and the
-        original image size to undo the resizing
-    """
-
-    if(isinstance(metadata["image_name"],list)):
-        img_name, img_shape = metadata["image_name"][0],  np.array(metadata["image_shape"][0])
-    else:
-        img_name, img_shape = metadata["image_name"],  np.array(metadata["image_shape"])
-
-    # extracting and matching keypoints to poses
-    _, keypoints = pose_parsing.extract_joins_heatmap(heatmaps, min_distance=1, thr=thr)
-    pose_entries, all_keypoints = pose_parsing.group_keypoints(keypoints, pafs, min_paf_score=0.05,
-                                                               thr_ratio=thr_ratio)
-
-    # reshaping the points to match coco eval format
-    coco_keypoints_, scores = data_processing.convert_to_coco_format(pose_entries, all_keypoints)
-    coco_keypoints = data_processing.resize_inference(coco_keypoints_, original_size=img_shape,
-                                                      cur_size=cur_size)
-    cur_results = data_processing.convert_to_submission_dictionary(coco_keypoints, scores, img_name)
-
-    return cur_results
-
-
 def calc_dists(preds, target, normalize):
     """
-    Measure the euclidean distance between  predictions and target for computing
+    Measure the euclidean distance between predictions and target for computing
     the accuracy
 
     Args:
@@ -452,7 +353,8 @@ def accuracy(output, target, hm_type='gaussian', thr=0.5):
     cnt = 0
 
     for i in range(len(idx)):
-        acc[i + 1] = dist_acc(dists[idx[i]])
+        acc[i , avg_acc, cnt, pred
++ 1] = dist_acc(dists[idx[i]])
         if acc[i + 1] >= 0:
             avg_acc = avg_acc + acc[i + 1]
             cnt += 1
@@ -461,7 +363,6 @@ def accuracy(output, target, hm_type='gaussian', thr=0.5):
     if cnt != 0:
         acc[0] = avg_acc
     return acc, avg_acc, cnt, pred
-
 
 
 #

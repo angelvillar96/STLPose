@@ -2,7 +2,7 @@
 Methods for processing the retrieval dabase fit with pose skeletons from all person
 instanes in certain dataset, i.e., MS-COCO, Styled-COCO or Vases
 
-@author: Angel Villar-Corrales 
+@author: Angel Villar-Corrales
 """
 
 import os
@@ -176,7 +176,6 @@ def get_neighbors_idxs(query, num_retrievals=10, approach="full_body",
     else:
         confidence = kwargs["scores"]
 
-
     # kNN retrieval approach. Just giving the query to the fit kNN graph => O(log(N))
     if(retrieval_method == "knn"):
         assert "knn" in kwargs, "ERROR! 'knn' object was not given as parameter"
@@ -207,15 +206,17 @@ def get_neighbors_idxs(query, num_retrievals=10, approach="full_body",
     n_vectors, dims = database.shape
 
     if(penalization in ["mean", "max"]):
-        penalization_value = get_penalization_metric(query=query, database=database,
-                                                     penalization=penalization,
-                                                     metric_func=compute_metric,
-                                                     confidence=confidence)
+        penalization_value = get_penalization_metric(
+                query=query,
+                database=database,
+                penalization=penalization,
+                metric_func=compute_metric,
+                confidence=confidence
+            )
+
     epsilon = 1e-5
     dists = []
-    # print(query)
     for i, pose_vect in enumerate(database):
-
         # applying penalizations to ocluded points if necessary
         # ocluded points are assigned coordinate (0,0)
         if(penalization == "zero_coord"):
@@ -270,7 +271,7 @@ def get_penalization_metric(query, database, metric_func, penalization="mean",
 
     dists = []
     for i, cur_vect in enumerate(database):
-        if(i==N):
+        if(i == N):
             break
         dist = metric_func(query, cur_vect, confidence)
         dists.append(dist)
