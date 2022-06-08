@@ -181,8 +181,8 @@ Please consider citing if you find our findings or our repository helpful.
 @article{madhu2020enhancing,
   title={Enhancing human pose estimation in ancient vase paintings via perceptually-grounded style transfer learning},
   author={Madhu, Prathmesh and Villar-Corrales, Angel and Kosti, Ronak and Bendschus, Torsten and Reinhardt, Corinna and Bell, Peter and Maier, Andreas and Christlein, Vincent},
-  journal={arXiv preprint arXiv:2012.05616},
-  year={2020}
+  journal={Journal on Computing and Cultural Heritage (JOCCH)},
+  year={2022}
 }
 ```
 
