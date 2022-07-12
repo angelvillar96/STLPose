@@ -1,7 +1,5 @@
 # Enhancing Human Pose Estimation in Ancient Vase Paintings via Perceptually-grounded Style Transfer Learning
 
-## Work in Progress!
-
 This respository contains the main codebase for our paper: *Enhancing Human Pose Estimation in Ancient Vase Paintings via
 Perceptually-grounded Style Transfer Learning*
 
